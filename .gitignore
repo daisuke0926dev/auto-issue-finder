@@ -1,0 +1,30 @@
+# Logs
+logs/
+*.log
+
+# Tasks
+tonight.txt
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Legacy files (不要になったファイル)
+scripts/
+requirements.txt
+cmd/
+go.mod
+go.sum
+bin/
+start-auto-dev.sh
+.env.example
+__pycache__/
+*.py[cod]
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+vendor/

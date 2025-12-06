@@ -1,0 +1,18 @@
+# 今夜のタスク（サンプル）
+
+GitHubのIssueを取得するGoのCLIツールを作る。
+
+まずはプロジェクトの初期化から始める:
+- go mod init で auto-issue-finder を初期化
+- 基本的なディレクトリ構造を作成（cmd/, internal/, pkg/）
+
+次にGitHub APIクライアントを実装:
+- GitHub REST APIを使ってIssueを取得する機能
+- 認証はPersonal Access Tokenを使う
+- 取得したIssueをJSON形式で出力
+
+その後、基本的なテストも書く:
+- ユニットテストをいくつか追加
+- go test で実行できるように
+
+最後にREADMEも更新して、使い方を説明する。
