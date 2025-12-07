@@ -1,5 +1,6 @@
 # Binaries
 auto-issue-finder
+main
 *.exe
 *.exe~
 *.dll
@@ -10,15 +11,19 @@ auto-issue-finder
 *.test
 *.out
 coverage.out
-test-*.txt
-test-*.go
+coverage.html
+*.coverprofile
 
 # Environment
 .env
+.env.local
 
 # OS
 .DS_Store
 Thumbs.db
+.Spotlight-V100
+.Trashes
+ehthumbs.db
 
 # Vendor
 vendor/
@@ -28,27 +33,46 @@ vendor/
 .idea/
 *.swp
 *.swo
+*~
 
 # Logs
 logs/
 *.log
+nohup.out
 
 # Build artifacts
 bin/
 dist/
+build/
 
 # Backup files
 *.bak
 *.tmp
+*.backup
 
-# Legacy files (不要なファイル)
+# Auto-dev system task files
 tonight.txt
-scripts/
-requirements.txt
-start-auto-dev.sh
+task-*.txt
+
+# Temporary directories
+tmp/
+temp/
+
+# Go specific
+*.sum.lock
+
+# Reports and outputs
+reports/
+*.md.backup
+analysis.json
+
+# Legacy files (old system artifacts - not needed)
 cmd/executor/
 cmd/parse-tasks/
 cmd/reporter/
+scripts/
+requirements.txt
+start-auto-dev.sh
 README-auto-dev.md
 __pycache__/
 *.py[cod]
