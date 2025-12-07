@@ -1,235 +1,339 @@
-# Auto Issue Finder - Claude Code 自律開発システム
+# Auto Issue Finder
 
-**寝る前に自然言語でタスクを書くだけで、一晩かけて Claude Code が自動開発してくれるシステム**
+A powerful CLI tool that automatically analyzes GitHub repository issues, detects patterns, and provides actionable recommendations.
 
-## 特徴
+## Features
 
-- **自然言語でOK**: 難しい設定不要、普通の日本語で書くだけ
-- **Claude Code直接利用**: APIキー不要、今使ってるClaude Codeがそのまま動く
-- **完全自律実行**: 寝ている間にファイル作成・編集・テスト実行まで全部やる
-- **超シンプル**: たった2つのコマンドだけ
+- Fetch issues from any GitHub repository with pagination support
+- Comprehensive issue analysis:
+  - Basic statistics (open/closed, average resolution time)
+  - Label distribution and trends
+  - Monthly issue creation patterns
+  - Keyword extraction from issue titles
+- Pattern detection:
+  - Long-standing issues (open >30 days)
+  - Hot topics (issues with >20 comments)
+  - Unlabeled issues
+  - Stale issues (not updated in 14+ days)
+- Problem identification:
+  - Bug ratio analysis
+  - Potential duplicate detection
+  - Stale issue detection
+- Multiple output formats:
+  - Console (formatted for terminal)
+  - Markdown (detailed reports)
+  - JSON (for automation)
+- Smart recommendations based on analysis
 
-## 必要なもの
+## Installation
 
-- Claude Code CLI（既にインストール済みなら不要）
-- それだけ！
+### Prerequisites
 
-## 使い方（30秒で開始）
+- Go 1.21 or higher
+- GitHub Personal Access Token
 
-### 1. タスクを書く
-
-`tonight.txt` に今夜やりたいことを自然言語で書く:
-
-```bash
-cat > tonight.txt << 'EOF'
-GitHubのIssueを取得するGoのCLIツールを作る。
-
-まずはプロジェクトの初期化から始めて、
-GitHub APIクライアントを実装する。
-その後、基本的なテストも書く。
-EOF
-```
-
-### 2. 実行する
-
-```bash
-# フォアグラウンド実行（すぐ見たい場合）
-./auto-dev.sh tonight.txt
-
-# バックグラウンド実行（一晩実行 - おすすめ）
-./run-overnight.sh tonight.txt
-```
-
-### 3. 寝る 💤
-
-### 4. 翌朝確認
+### Build from source
 
 ```bash
-# ログを確認
-cat logs/overnight-*.log
+# Clone the repository
+git clone https://github.com/isiidaisuke0926/auto-issue-finder.git
+cd auto-issue-finder
 
-# 作成されたファイルを確認
-ls -la
+# Install dependencies
+go mod download
+
+# Build the CLI tool
+go build -o auto-issue-finder cmd/analyze/main.go
+
+# (Optional) Install globally
+go install cmd/analyze/main.go
 ```
 
-## 完了！
+## Quick Start
 
-## 仕組み
+### 1. Set up GitHub Token
 
-1. `tonight.txt` にタスクを書く
-2. `auto-dev.sh` が Claude Code CLI（`claude -p`）を呼び出す
-3. Claude Code が実際にファイルを作成・編集・コマンド実行
-4. `.claude/settings.local.json` で全て自動承認済み
-5. 完全に自律的に動作
+Create a `.env` file in the project root:
 
-## ファイル構成
+```bash
+cp .env.example .env
+# Edit .env and add your token
+echo "GITHUB_TOKEN=your_github_token_here" > .env
+```
+
+Or set it as an environment variable:
+
+```bash
+export GITHUB_TOKEN=your_github_token_here
+```
+
+### 2. Run Analysis
+
+```bash
+# Analyze a repository (console output)
+./auto-issue-finder analyze microsoft/vscode --format=console
+
+# Generate markdown report
+./auto-issue-finder analyze golang/go --format=markdown --output=report.md
+
+# Limit to 100 issues
+./auto-issue-finder analyze owner/repo --limit=100
+
+# Filter by state and labels
+./auto-issue-finder analyze owner/repo --state=open --labels=bug,enhancement
+
+# JSON output for automation
+./auto-issue-finder analyze owner/repo --format=json --output=analysis.json
+```
+
+## Usage
+
+### Basic Command
+
+```bash
+auto-issue-finder analyze [owner/repo] [flags]
+```
+
+### Available Flags
+
+| Flag | Description | Default | Example |
+|------|-------------|---------|---------|
+| `--token` | GitHub personal access token | `$GITHUB_TOKEN` | `--token=ghp_xxx` |
+| `--state` | Filter by issue state | `all` | `--state=open` |
+| `--labels` | Filter by labels (comma-separated) | `[]` | `--labels=bug,help-wanted` |
+| `--format` | Output format | `markdown` | `--format=json` |
+| `--output` | Output file path | stdout | `--output=report.md` |
+| `--limit` | Max issues to fetch (0 = all) | `0` | `--limit=100` |
+| `--verbose` | Enable verbose logging | `false` | `--verbose` |
+
+### Examples
+
+#### Example 1: Quick Console Analysis
+
+```bash
+./auto-issue-finder analyze microsoft/vscode --format=console --limit=50
+```
+
+Output:
+```
+🔍 Analyzing microsoft/vscode...
+✓ Fetched 50 issues
+
+📊 Issue Statistics
+─────────────────────────────────
+Total Issues:        50
+Open:                42 (84%)
+Closed:              8 (16%)
+Avg Resolution Time: 12.3 days
+
+📋 Label Distribution
+─────────────────────────────────
+bug                  23 (46%)
+feature-request      15 (30%)
+enhancement          8 (16%)
+
+⚠️  Issues Needing Attention
+─────────────────────────────────
+• 12 issues without labels
+• 18 issues open for >30 days
+• 5 issues with >20 comments
+
+💡 Recommendations
+─────────────────────────────────
+1. Consider triaging 12 unlabeled issues
+2. Review 18 long-standing open issues
+3. High activity issues may need prioritization (5)
+```
+
+#### Example 2: Generate Markdown Report
+
+```bash
+./auto-issue-finder analyze golang/go \
+  --state=open \
+  --format=markdown \
+  --output=golang-issues.md
+```
+
+#### Example 3: JSON for Automation
+
+```bash
+./auto-issue-finder analyze owner/repo \
+  --format=json \
+  --output=analysis.json
+
+# Use with jq for processing
+cat analysis.json | jq '.Stats.TotalIssues'
+```
+
+## Output Formats
+
+### Console Format
+
+Optimized for terminal viewing with emojis and formatted sections.
+
+### Markdown Format
+
+Detailed report with:
+- Statistics table
+- Label distribution
+- Monthly trend chart (ASCII)
+- Long-standing issues list
+- High-activity issues list
+- Prioritized recommendations
+
+See [examples/sample-report.md](examples/sample-report.md) for a sample.
+
+### JSON Format
+
+Complete analysis data in JSON format for programmatic processing.
+
+## GitHub Token
+
+### Creating a Token
+
+1. Go to GitHub Settings > Developer settings > Personal access tokens > Tokens (classic)
+2. Click "Generate new token"
+3. Select scopes: `public_repo` (for public repos) or `repo` (for private repos)
+4. Copy the token
+
+### Setting the Token
+
+Option 1: Environment variable
+```bash
+export GITHUB_TOKEN=ghp_xxxxxxxxxxxx
+```
+
+Option 2: `.env` file
+```bash
+echo "GITHUB_TOKEN=ghp_xxxxxxxxxxxx" > .env
+```
+
+Option 3: Command flag
+```bash
+./auto-issue-finder analyze owner/repo --token=ghp_xxxxxxxxxxxx
+```
+
+## Development
+
+### Running Tests
+
+```bash
+# Run all tests
+go test ./...
+
+# Run tests with coverage
+go test ./... -cover
+
+# Run tests verbosely
+go test ./... -v
+
+# Check coverage for specific package
+go test ./internal/analyzer -coverprofile=coverage.out
+go tool cover -html=coverage.out
+```
+
+### Test Coverage
+
+- `internal/analyzer`: 96.9%
+- `internal/reporter`: 96.5%
+- Overall: >70%
+
+### Project Structure
 
 ```
 auto-issue-finder/
-├── README.md                    # このファイル
-├── tonight.txt                  # タスクを書くファイル（あなたが編集）
-├── tonight.txt.example          # タスクのサンプル
-├── auto-dev.sh                  # Claude Code実行スクリプト
-├── run-overnight.sh             # 一晩実行スクリプト
-├── .claude/
-│   └── settings.local.json      # 自動承認設定
-└── logs/                        # 実行ログ（自動生成）
-    └── overnight-*.log
+├── cmd/
+│   └── analyze/          # Main CLI command
+│       └── main.go
+├── internal/
+│   ├── github/           # GitHub API client
+│   │   ├── client.go
+│   │   └── client_test.go
+│   ├── analyzer/         # Issue analysis logic
+│   │   ├── analyzer.go
+│   │   └── analyzer_test.go
+│   └── reporter/         # Report generation
+│       ├── reporter.go
+│       └── reporter_test.go
+├── pkg/
+│   └── models/           # Data models
+│       └── models.go
+├── examples/             # Sample outputs
+├── go.mod
+├── go.sum
+├── README.md
+└── CONTRIBUTING.md
 ```
 
-## タスクの書き方
+## Contributing
 
-### 良い例
+Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details.
 
-```text
-✓ ユーザー認証機能を実装する。JWTを使う。
-✓ データベースにPostgreSQLを使ってユーザーテーブルを作る。
-✓ RESTful APIエンドポイントを3つ作る: ログイン、登録、プロフィール取得。
-```
+### Quick Start for Contributors
 
-### 悪い例
+1. Fork the repository
+2. Create a feature branch (`git checkout -b feature/amazing-feature`)
+3. Make your changes
+4. Run tests (`go test ./...`)
+5. Commit your changes (`git commit -m 'Add amazing feature'`)
+6. Push to the branch (`git push origin feature/amazing-feature`)
+7. Open a Pull Request
 
-```text
-✗ いい感じにする（具体性がない）
-✗ バグを直す（何のバグ？）
-✗ すべてを完璧に実装する（大きすぎる）
-```
+## Troubleshooting
 
-### ポイント
+### "invalid token" Error
 
-1. **具体的に**: 何をするか明確に書く
-2. **技術を指定**: 使う技術やライブラリを明記
-3. **適度なサイズ**: 一晩で終わる範囲に
-4. **順序を意識**: 依存関係がある場合は順番に書く
+Make sure your GitHub token:
+- Has the correct scopes (`repo` or `public_repo`)
+- Is not expired
+- Is correctly set in `.env` or environment variable
 
-## 実例：寝る前の手順
+### Rate Limiting
+
+GitHub API has rate limits:
+- Authenticated: 5,000 requests/hour
+- Unauthenticated: 60 requests/hour
+
+Use `--verbose` to see rate limit status:
 
 ```bash
-# 22:00 - やりたいことをサクッと書く（1分）
-cat > tonight.txt << 'EOF'
-ログイン機能を実装して、テストも書く。
-Reactで簡単なUIも作る。
-EOF
-
-# 22:01 - 実行開始（10秒）
-./run-overnight.sh tonight.txt
-
-# 22:02 - 寝る 💤
+./auto-issue-finder analyze owner/repo --verbose
 ```
 
-```bash
-# 07:00 - 翌朝確認（1分）
-cat logs/overnight-*.log | tail -50
+### No Issues Found
 
-# 完成！
-```
+Check:
+- Repository exists and is public (or you have access)
+- State filter matches issues (`--state=all` to see all)
+- Label filters are correct
 
-## トラブルシューティング
+## Roadmap
 
-### 実行状態の確認
+- [ ] Cache support for faster re-analysis
+- [ ] HTML dashboard output
+- [ ] Multi-repository batch analysis
+- [ ] GitHub Actions integration
+- [ ] Issue timeline analysis
+- [ ] Contributor statistics
+- [ ] Custom analysis rules
 
-```bash
-# プロセスが動いているか確認
-if [ -f logs/overnight.pid ]; then
-  PID=$(cat logs/overnight.pid)
-  ps -p $PID && echo "実行中 (PID: $PID)" || echo "完了済み"
-fi
-```
+## License
 
-### 実行中のログを見る
+MIT License - see [LICENSE](LICENSE) for details
 
-```bash
-# リアルタイムでログを確認
-tail -f logs/overnight-*.log
-```
+## Credits
 
-### 停止する
+Built with:
+- [go-github](https://github.com/google/go-github) - GitHub API client
+- [cobra](https://github.com/spf13/cobra) - CLI framework
+- [godotenv](https://github.com/joho/godotenv) - Environment variable loader
+- [testify](https://github.com/stretchr/testify) - Testing toolkit
 
-```bash
-# プロセスを停止
-kill $(cat logs/overnight.pid)
-rm logs/overnight.pid
-```
+## Support
 
-### 自動承認が効かない
-
-`.claude/settings.local.json`を確認:
-
-```json
-{
-  "permissions": {
-    "allow": [
-      "Bash",
-      "Read",
-      "Write",
-      "Edit",
-      "Glob",
-      "Grep"
-    ]
-  }
-}
-```
-
-## 高度な使い方
-
-### カスタムタスクファイル
-
-```bash
-./auto-dev.sh my-custom-tasks.txt
-```
-
-### ログの保存場所を変更
-
-```bash
-LOG_FILE=my-log.txt ./auto-dev.sh tonight.txt
-```
-
-## よくある質問
-
-### Q: APIキーは必要？
-A: **不要！** Claude Code CLIをそのまま使うので、APIキーは一切不要です。
-
-### Q: 課金される？
-A: Claude Code の通常利用と同じです。追加料金はありません。
-
-### Q: 本当にファイルを作成・編集できる？
-A: **はい！** Claude Code CLI (`claude -p`)が実際にファイル操作を行います。
-
-### Q: どれくらい複雑なタスクができる？
-A: Claude Code ができることなら何でもできます。複数ファイルの作成、テスト実行、git操作など全て可能です。
-
-### Q: 途中で止まったら？
-A: ログを確認して、エラー箇所から再開できます。タスクを修正して再実行してください。
-
-### Q: セキュリティは大丈夫？
-A: `.claude/settings.local.json`でプロジェクト内のみ自動承認されます。他のプロジェクトには影響しません。
-
-## なぜこの方法が良いのか
-
-### 従来の方法（Anthropic API使用）
-- ❌ APIキーが必要
-- ❌ 別途課金される
-- ❌ ファイル操作ができない（計画のみ）
-- ❌ 実装が複雑
-
-### 新しい方法（Claude Code CLI使用）
-- ✅ APIキー不要
-- ✅ 追加課金なし
-- ✅ 実際のファイル操作ができる
-- ✅ 超シンプル
-
-## ライセンス
-
-MIT License
-
-## 貢献
-
-Issue、PRお待ちしています！
+- Report bugs: [GitHub Issues](https://github.com/isiidaisuke0926/auto-issue-finder/issues)
+- Questions: [GitHub Discussions](https://github.com/isiidaisuke0926/auto-issue-finder/discussions)
 
 ---
 
-**今すぐ試してみよう！**
-
-```bash
-./auto-dev.sh tonight.txt.example
-```
+**Happy analyzing!**
