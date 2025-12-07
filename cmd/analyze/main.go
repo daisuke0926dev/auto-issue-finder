@@ -24,7 +24,7 @@ var (
 )
 
 func main() {
-	// Load .env file if exists
+	// .envファイルが存在する場合は読み込む（エラーは無視）
 	_ = godotenv.Load()
 
 	var rootCmd = &cobra.Command{

@@ -9,13 +9,13 @@ import (
 	"github.com/isiidaisuke0926/auto-issue-finder/pkg/models"
 )
 
-// Reporter generates reports in various formats
+// Reporter は様々な形式でレポートを生成する
 type Reporter struct {
 	result *models.AnalysisResult
 	repo   string
 }
 
-// NewReporter creates a new reporter
+// NewReporter は新しいレポーターを作成する
 func NewReporter(result *models.AnalysisResult, repo string) *Reporter {
 	result.Repository = repo
 	return &Reporter{
@@ -24,7 +24,7 @@ func NewReporter(result *models.AnalysisResult, repo string) *Reporter {
 	}
 }
 
-// GenerateMarkdown creates a Markdown report
+// GenerateMarkdown はMarkdown形式のレポートを作成する
 func (r *Reporter) GenerateMarkdown(recommendations []models.Recommendation) string {
 	var sb strings.Builder
 
@@ -168,7 +168,7 @@ func (r *Reporter) GenerateMarkdown(recommendations []models.Recommendation) str
 	return sb.String()
 }
 
-// GenerateJSON creates a JSON report
+// GenerateJSON はJSON形式のレポートを作成する
 func (r *Reporter) GenerateJSON() (string, error) {
 	data, err := json.MarshalIndent(r.result, "", "  ")
 	if err != nil {
@@ -177,7 +177,7 @@ func (r *Reporter) GenerateJSON() (string, error) {
 	return string(data), nil
 }
 
-// GenerateConsoleOutput creates formatted console output
+// GenerateConsoleOutput はフォーマットされたコンソール出力を作成する
 func (r *Reporter) GenerateConsoleOutput(recommendations []models.Recommendation) string {
 	var sb strings.Builder
 

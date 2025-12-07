@@ -10,14 +10,14 @@ import (
 	"golang.org/x/oauth2"
 )
 
-// Client wraps GitHub API client
+// Client はGitHub APIクライアントをラップする
 type Client struct {
 	client  *github.Client
 	ctx     context.Context
 	verbose bool
 }
 
-// NewClient creates a new GitHub client
+// NewClient は新しいGitHubクライアントを作成する
 func NewClient(token string, verbose bool) *Client {
 	ctx := context.Background()
 	ts := oauth2.StaticTokenSource(
@@ -32,7 +32,7 @@ func NewClient(token string, verbose bool) *Client {
 	}
 }
 
-// FetchIssues retrieves issues from a repository with pagination
+// FetchIssues はページネーションを使用してリポジトリからIssueを取得する
 func (c *Client) FetchIssues(owner, repo string, state string, labels []string, limit int) ([]models.IssueSummary, error) {
 	var allIssues []models.IssueSummary
 	opts := &github.IssueListByRepoOptions{
@@ -56,7 +56,7 @@ func (c *Client) FetchIssues(owner, repo string, state string, labels []string, 
 		}
 
 		for _, issue := range issues {
-			// Skip pull requests
+			// プルリクエストはスキップ
 			if issue.PullRequestLinks != nil {
 				continue
 			}
@@ -74,7 +74,7 @@ func (c *Client) FetchIssues(owner, repo string, state string, labels []string, 
 		}
 		page = resp.NextPage
 
-		// Rate limiting consideration
+		// レート制限の考慮
 		if c.verbose {
 			rate, _, err := c.client.RateLimit.Get(c.ctx)
 			if err == nil {
@@ -86,7 +86,7 @@ func (c *Client) FetchIssues(owner, repo string, state string, labels []string, 
 	return allIssues, nil
 }
 
-// GetRateLimit returns current rate limit status
+// GetRateLimit は現在のレート制限状態を返す
 func (c *Client) GetRateLimit() (*github.RateLimits, error) {
 	rate, _, err := c.client.RateLimit.Get(c.ctx)
 	if err != nil {
@@ -95,7 +95,7 @@ func (c *Client) GetRateLimit() (*github.RateLimits, error) {
 	return rate, nil
 }
 
-// convertToSummary converts GitHub issue to our model
+// convertToSummary はGitHub IssueをモデルIssueに変換する
 func (c *Client) convertToSummary(issue *github.Issue) models.IssueSummary {
 	summary := models.IssueSummary{
 		Number:    issue.GetNumber(),
@@ -119,7 +119,7 @@ func (c *Client) convertToSummary(issue *github.Issue) models.IssueSummary {
 	return summary
 }
 
-// ValidateToken checks if the token is valid
+// ValidateToken はトークンが有効かどうかを確認する
 func (c *Client) ValidateToken() error {
 	_, _, err := c.client.Users.Get(c.ctx, "")
 	if err != nil {

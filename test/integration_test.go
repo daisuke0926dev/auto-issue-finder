@@ -10,8 +10,8 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-// TestBuildCLI verifies the CLI can be built without errors.
-// This catches compilation errors and dependency issues early.
+// TestBuildCLI はCLIがエラーなくビルドできることを検証する。
+// コンパイルエラーや依存関係の問題を早期に検出するため。
 func TestBuildCLI(t *testing.T) {
 	projectRoot := getProjectRoot(t)
 	binaryPath := filepath.Join(projectRoot, "test-auto-issue-finder")
@@ -29,8 +29,8 @@ func TestBuildCLI(t *testing.T) {
 	assert.True(t, info.Mode()&0111 != 0, "Binary should be executable")
 }
 
-// TestCLIHelp verifies the help command works correctly.
-// Users often run --help first, so this must work.
+// TestCLIHelp はヘルプコマンドが正しく動作することを検証する。
+// ユーザーは最初に--helpを実行することが多いため、これは必ず動作する必要がある。
 func TestCLIHelp(t *testing.T) {
 	projectRoot := getProjectRoot(t)
 	binaryPath := buildTestBinary(t, projectRoot)
@@ -46,8 +46,8 @@ func TestCLIHelp(t *testing.T) {
 	assert.Contains(t, outputStr, "Usage")
 }
 
-// TestCLIAnalyzeWithoutToken verifies proper error handling when GitHub token is missing.
-// Users should get a clear error message explaining how to fix the issue.
+// TestCLIAnalyzeWithoutToken はGitHubトークンが無い場合の適切なエラー処理を検証する。
+// ユーザーは問題の修正方法を説明する明確なエラーメッセージを受け取る必要がある。
 func TestCLIAnalyzeWithoutToken(t *testing.T) {
 	projectRoot := getProjectRoot(t)
 	binaryPath := buildTestBinary(t, projectRoot)

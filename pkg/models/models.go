@@ -2,7 +2,7 @@ package models
 
 import "time"
 
-// IssueStats represents statistical information about issues
+// IssueStats はIssueに関する統計情報を表す
 type IssueStats struct {
 	TotalIssues         int
 	OpenIssues          int
@@ -12,7 +12,7 @@ type IssueStats struct {
 	MonthlyDistribution map[string]int
 }
 
-// IssuePattern represents detected patterns in issues
+// IssuePattern はIssueから検出されたパターンを表す
 type IssuePattern struct {
 	Keywords           map[string]int
 	LongStandingIssues []IssueSummary
@@ -20,14 +20,14 @@ type IssuePattern struct {
 	UnlabeledIssues    []IssueSummary
 }
 
-// IssueProblem represents detected problems
+// IssueProblem は検出された問題を表す
 type IssueProblem struct {
 	BugRatio            float64
 	PotentialDuplicates []DuplicatePair
 	StaleIssues         []IssueSummary
 }
 
-// IssueSummary is a simplified issue representation
+// IssueSummary は簡略化されたIssue表現
 type IssueSummary struct {
 	Number      int
 	Title       string
@@ -40,14 +40,14 @@ type IssueSummary struct {
 	HTMLURL     string
 }
 
-// DuplicatePair represents potentially duplicate issues
+// DuplicatePair は重複の可能性があるIssueのペアを表す
 type DuplicatePair struct {
 	Issue1     IssueSummary
 	Issue2     IssueSummary
 	Similarity float64
 }
 
-// AnalysisResult contains all analysis results
+// AnalysisResult は全ての分析結果を含む
 type AnalysisResult struct {
 	Repository string
 	Stats      IssueStats
@@ -56,7 +56,7 @@ type AnalysisResult struct {
 	GeneratedAt time.Time
 }
 
-// Recommendation represents an improvement suggestion
+// Recommendation は改善提案を表す
 type Recommendation struct {
 	Priority    string
 	Category    string

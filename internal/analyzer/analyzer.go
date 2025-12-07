@@ -96,7 +96,7 @@ func (a *Analyzer) detectPatterns() models.IssuePattern {
 
 		if issue.State == "open" {
 			daysSinceCreation := time.Since(issue.CreatedAt).Hours() / 24
-			if daysSinceCreation > 30 { // 30 days threshold for long-standing issues
+			if daysSinceCreation > 30 { // 長期未解決Issueの閾値: 30日
 				patterns.LongStandingIssues = append(patterns.LongStandingIssues, issue)
 			}
 		}
@@ -127,7 +127,7 @@ func (a *Analyzer) detectProblems() models.IssueProblem {
 		}
 
 		daysSinceUpdate := time.Since(issue.UpdatedAt).Hours() / 24
-		if issue.State == "open" && daysSinceUpdate > 14 { // 14 days threshold for stale issues
+		if issue.State == "open" && daysSinceUpdate > 14 { // 放置Issueの閾値: 14日
 			problems.StaleIssues = append(problems.StaleIssues, issue)
 		}
 	}
@@ -148,7 +148,7 @@ func (a *Analyzer) findPotentialDuplicates() []models.DuplicatePair {
 	for i := 0; i < len(a.issues); i++ {
 		for j := i + 1; j < len(a.issues); j++ {
 			similarity := a.calculateSimilarity(a.issues[i].Title, a.issues[j].Title)
-			if similarity > 0.6 { // 60% similarity threshold
+			if similarity > 0.6 { // 類似度の閾値: 60%
 				duplicates = append(duplicates, models.DuplicatePair{
 					Issue1:     a.issues[i],
 					Issue2:     a.issues[j],
