@@ -1,30 +1,67 @@
-# Logs
-logs/
-*.log
-
-# Tasks
-tonight.txt
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Legacy files (不要になったファイル)
-scripts/
-requirements.txt
-cmd/
-go.mod
-go.sum
-bin/
-start-auto-dev.sh
-.env.example
-__pycache__/
-*.py[cod]
+# Binaries
+auto-issue-finder
+main
 *.exe
 *.exe~
 *.dll
 *.so
 *.dylib
+
+# Test files
 *.test
 *.out
+coverage.out
+coverage.html
+*.coverprofile
+
+# Environment
+.env
+.env.local
+
+# OS
+.DS_Store
+Thumbs.db
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+
+# Vendor
 vendor/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Logs
+logs/
+*.log
+nohup.out
+
+# Build artifacts
+bin/
+dist/
+build/
+
+# Backup files
+*.bak
+*.tmp
+*.backup
+
+# Auto-dev system task files
+tonight.txt
+task-*.txt
+
+# Temporary directories
+tmp/
+temp/
+
+# Go specific
+*.sum.lock
+
+# Reports and outputs
+reports/
+*.md.backup
+analysis.json

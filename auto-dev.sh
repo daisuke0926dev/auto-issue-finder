@@ -62,15 +62,22 @@ echo -e "${BLUE}タスク内容:${NC}"
 cat "$INPUT_FILE"
 echo ""
 
-# 実行確認
-echo -e "${YELLOW}Claude Code で自律開発を開始しますか？ (y/n)${NC}"
-echo -e "${YELLOW}※ すべてのツールが自動承認されます${NC}"
-read -r answer
-if [ "$answer" != "y" ]; then
-    echo "キャンセルしました"
-    exit 0
+# 対話モードかどうかチェック
+if [ -t 0 ]; then
+    # 標準入力が端末（対話モード）
+    echo -e "${YELLOW}Claude Code で自律開発を開始しますか？ (y/n)${NC}"
+    echo -e "${YELLOW}※ すべてのツールが自動承認されます${NC}"
+    read -r answer
+    if [ "$answer" != "y" ]; then
+        echo "キャンセルしました"
+        exit 0
+    fi
+    echo ""
+else
+    # バックグラウンド実行（自動的に開始）
+    echo -e "${GREEN}自動開始モード（バックグラウンド実行）${NC}"
+    echo ""
 fi
-echo ""
 
 # ログディレクトリを作成
 mkdir -p logs
