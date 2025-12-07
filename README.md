@@ -1,446 +1,249 @@
 # Auto Issue Finder
 
-このリポジトリには2つの主要なツールが含まれています:
+[![Go Version](https://img.shields.io/badge/Go-1.21+-00ADD8?style=flat&logo=go)](https://go.dev/)
+[![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-1. **Claude Code 自律開発システム** - Claude Codeを使って夜間に自律的に開発を進めるシステム
-2. **GitHub Issue Analyzer** - GitHubリポジトリのIssueを自動分析し、パターン検出と推奨事項を提供するCLIツール
+> 🤖 Claude Codeによる自律開発システム + 📊 GitHub Issue分析ツール
+
+このリポジトリには2つの強力なツールが含まれています:
+
+1. **Claude Code自律開発システム** - 寝ている間にClaude Codeが自律的に開発を進めるシステム
+2. **GitHub Issue Analyzer** - リポジトリのIssueを自動分析し、パターン検出と推奨事項を提供
 
 ---
 
-## Claude Code 自律開発システム
+## 🚀 クイックスタート
 
-### 概要
-
-Claude Codeに自律的に開発させるためのシステムです。タスクファイルを作成するだけで、寝ている間にClaude Codeが開発を進めてくれます。
-
-**主な機能:**
-- タスクベースの自律実行
-- バックグラウンド実行対応
-- 自動git commit（タスクごと、または完了時）
-- プログレス追跡とログ出力
-
-### 他のプロジェクトへのインストール
-
-任意のGoプロジェクトでワンライナーでインストール可能:
+### Claude Code自律開発システム
 
 ```bash
+# 任意のプロジェクトにワンライナーでインストール
+curl -sSL https://raw.githubusercontent.com/isiidaisuke0926/auto-issue-finder/main/install-auto-dev.sh | bash
+
+# タスクファイルを作成
+cp tonight-with-tasks.txt.example tonight.txt
+vim tonight.txt
+
+# 実行（寝ている間に開発）
+./run-overnight.sh tonight.txt
+```
+
+### GitHub Issue Analyzer
+
+```bash
+# ビルド
+go build -o auto-issue-finder cmd/analyze/main.go
+
+# 実行
+export GITHUB_TOKEN=your_token_here
+./auto-issue-finder analyze microsoft/vscode --format=console
+```
+
+---
+
+## ✨ 主要機能
+
+### Claude Code自律開発システム
+
+- 🌙 **夜間自律実行** - バックグラウンドで数時間の開発を自動実行
+- 📝 **タスクベース** - マークダウンでタスクを記述するだけ
+- 🔄 **自動コミット** - タスクごと、または完了時に自動git commit
+- 🎯 **柔軟な実行モード** - 対話的/バックグラウンド/インクリメンタル
+- 🔧 **自動承認設定** - 全ツールの使用を自動承認して中断なし
+
+### GitHub Issue Analyzer
+
+- 📊 **包括的な分析** - 統計、ラベル分布、月次トレンド
+- 🔍 **パターン検出** - 長期未解決Issue、高活動Issue、重複疑い
+- 📈 **複数の出力形式** - Console/Markdown/JSON
+- 💡 **実用的な推奨** - 分析結果に基づく具体的なアクション提案
+- ⚡ **高速処理** - ページネーション対応、効率的なAPI利用
+
+---
+
+## 📦 インストール
+
+### Claude Code自律開発システム
+
+他のプロジェクトで使用する場合:
+
+```bash
+# ワンライナーインストール
 curl -sSL https://raw.githubusercontent.com/isiidaisuke0926/auto-issue-finder/main/install-auto-dev.sh | bash
 ```
 
-このコマンドで以下がインストールされます:
-- `auto-dev.sh` - 基本実行スクリプト
-- `auto-dev-with-commits.sh` - 完了後に1つのコミット
-- `auto-dev-incremental.sh` - タスクごとに個別コミット
+インストールされるファイル:
+- `auto-dev.sh` - 基本実行
+- `auto-dev-incremental.sh` - タスクごとにコミット
 - `run-overnight.sh` - バックグラウンド実行
 - `.claude/settings.local.json` - 自動承認設定
-- `tonight-with-tasks.txt.example` - サンプルタスクファイル
 
-### 使い方
-
-#### 1. タスクファイルを作成
+### GitHub Issue Analyzer
 
 ```bash
-cp tonight-with-tasks.txt.example tonight.txt
-vim tonight.txt  # タスク内容を編集
+git clone https://github.com/isiidaisuke0926/auto-issue-finder.git
+cd auto-issue-finder
+go mod download
+go build -o auto-issue-finder cmd/analyze/main.go
 ```
-
-タスクファイルの例:
-```markdown
-今夜のタスク: ユーザー認証機能の実装
-
-## 要件
-- JWTベースの認証
-- ログイン/ログアウト機能
-- ミドルウェアでの認証チェック
-- テストコード付き
-
-## 制約
-- Go 1.21以上
-- 既存のコード規約に従う
-```
-
-#### 2. 実行方法を選択
-
-**基本実行（コミットなし）:**
-```bash
-./auto-dev.sh tonight.txt
-```
-
-**完了後に1つのコミット:**
-```bash
-./auto-dev-with-commits.sh tonight.txt
-```
-
-**タスクごとに個別コミット:**
-```bash
-# タスクを '# タスク1', '# タスク2' のように分割
-./auto-dev-incremental.sh tonight.txt
-```
-
-**バックグラウンド実行（寝ている間に開発）:**
-```bash
-./run-overnight.sh tonight.txt
-tail -f nohup.out  # ログ確認
-```
-
-### 設定
-
-`.claude/settings.local.json` で全てのツール使用を自動承認:
-```json
-{
-  "permissions": {
-    "allow": ["Bash", "Read", "Write", "Edit", "Glob", "Grep"],
-    "deny": [],
-    "ask": []
-  }
-}
-```
-
-### ヒント
-
-- タスクはマークダウン形式で記述
-- インクリメンタル実行では `# タスク` または `# Task` で分割
-- バックグラウンド実行時は `nohup.out` でログ確認
-- 難易度の高いタスクほど効果的（3時間以上推奨）
 
 ---
 
-## GitHub Issue Analyzer
+## 🎯 使用例
 
-A powerful CLI tool that automatically analyzes GitHub repository issues, detects patterns, and provides actionable recommendations.
+### Claude Code自律開発システム
 
-## Features
-
-- Fetch issues from any GitHub repository with pagination support
-- Comprehensive issue analysis:
-  - Basic statistics (open/closed, average resolution time)
-  - Label distribution and trends
-  - Monthly issue creation patterns
-  - Keyword extraction from issue titles
-- Pattern detection:
-  - Long-standing issues (open >30 days)
-  - Hot topics (issues with >20 comments)
-  - Unlabeled issues
-  - Stale issues (not updated in 14+ days)
-- Problem identification:
-  - Bug ratio analysis
-  - Potential duplicate detection
-  - Stale issue detection
-- Multiple output formats:
-  - Console (formatted for terminal)
-  - Markdown (detailed reports)
-  - JSON (for automation)
-- Smart recommendations based on analysis
-
-## Installation
-
-### Prerequisites
-
-- Go 1.21 or higher
-- GitHub Personal Access Token
-
-### Build from source
+**基本的な使い方:**
 
 ```bash
-# Clone the repository
-git clone https://github.com/isiidaisuke0926/auto-issue-finder.git
-cd auto-issue-finder
+# 1. タスクファイル作成
+cat > tonight.txt << 'EOF'
+今夜のタスク: RESTful APIサーバーの実装
 
-# Install dependencies
-go mod download
+## 要件
+- ユーザーCRUD機能
+- JWT認証
+- テストカバレッジ80%以上
 
-# Build the CLI tool
-go build -o auto-issue-finder cmd/analyze/main.go
+## 技術スタック
+- Go 1.21
+- chi router
+- PostgreSQL
+EOF
 
-# (Optional) Install globally
-go install cmd/analyze/main.go
+# 2. 実行方法を選択
+
+# 対話的実行
+./auto-dev.sh tonight.txt
+
+# タスクごとに個別コミット
+./auto-dev-incremental.sh tonight.txt
+
+# バックグラウンド実行（推奨）
+./run-overnight.sh tonight.txt
+tail -f nohup.out  # ログ監視
 ```
 
-## Quick Start
+**インクリメンタルコミットの例:**
 
-### 1. Set up GitHub Token
+```markdown
+# タスク1: データベーススキーマ設計
+- users テーブル作成
+- マイグレーションファイル作成
 
-Create a `.env` file in the project root:
+# タスク2: APIエンドポイント実装
+- GET /users
+- POST /users
+- PUT /users/:id
+- DELETE /users/:id
+
+# タスク3: テスト追加
+- ユニットテスト
+- 統合テスト
+```
+
+### GitHub Issue Analyzer
+
+**コンソール出力:**
 
 ```bash
-cp .env.example .env
-# Edit .env and add your token
-echo "GITHUB_TOKEN=your_github_token_here" > .env
+./auto-issue-finder analyze golang/go --format=console --limit=100
 ```
 
-Or set it as an environment variable:
+**マークダウンレポート生成:**
 
 ```bash
-export GITHUB_TOKEN=your_github_token_here
-```
-
-### 2. Run Analysis
-
-```bash
-# Analyze a repository (console output)
-./auto-issue-finder analyze microsoft/vscode --format=console
-
-# Generate markdown report
-./auto-issue-finder analyze golang/go --format=markdown --output=report.md
-
-# Limit to 100 issues
-./auto-issue-finder analyze owner/repo --limit=100
-
-# Filter by state and labels
-./auto-issue-finder analyze owner/repo --state=open --labels=bug,enhancement
-
-# JSON output for automation
-./auto-issue-finder analyze owner/repo --format=json --output=analysis.json
-```
-
-## Usage
-
-### Basic Command
-
-```bash
-auto-issue-finder analyze [owner/repo] [flags]
-```
-
-### Available Flags
-
-| Flag | Description | Default | Example |
-|------|-------------|---------|---------|
-| `--token` | GitHub personal access token | `$GITHUB_TOKEN` | `--token=ghp_xxx` |
-| `--state` | Filter by issue state | `all` | `--state=open` |
-| `--labels` | Filter by labels (comma-separated) | `[]` | `--labels=bug,help-wanted` |
-| `--format` | Output format | `markdown` | `--format=json` |
-| `--output` | Output file path | stdout | `--output=report.md` |
-| `--limit` | Max issues to fetch (0 = all) | `0` | `--limit=100` |
-| `--verbose` | Enable verbose logging | `false` | `--verbose` |
-
-### Examples
-
-#### Example 1: Quick Console Analysis
-
-```bash
-./auto-issue-finder analyze microsoft/vscode --format=console --limit=50
-```
-
-Output:
-```
-🔍 Analyzing microsoft/vscode...
-✓ Fetched 50 issues
-
-📊 Issue Statistics
-─────────────────────────────────
-Total Issues:        50
-Open:                42 (84%)
-Closed:              8 (16%)
-Avg Resolution Time: 12.3 days
-
-📋 Label Distribution
-─────────────────────────────────
-bug                  23 (46%)
-feature-request      15 (30%)
-enhancement          8 (16%)
-
-⚠️  Issues Needing Attention
-─────────────────────────────────
-• 12 issues without labels
-• 18 issues open for >30 days
-• 5 issues with >20 comments
-
-💡 Recommendations
-─────────────────────────────────
-1. Consider triaging 12 unlabeled issues
-2. Review 18 long-standing open issues
-3. High activity issues may need prioritization (5)
-```
-
-#### Example 2: Generate Markdown Report
-
-```bash
-./auto-issue-finder analyze golang/go \
+./auto-issue-finder analyze microsoft/vscode \
   --state=open \
   --format=markdown \
-  --output=golang-issues.md
+  --output=report.md
 ```
 
-#### Example 3: JSON for Automation
+**JSON出力（自動化向け）:**
 
 ```bash
 ./auto-issue-finder analyze owner/repo \
   --format=json \
   --output=analysis.json
 
-# Use with jq for processing
+# jqで処理
 cat analysis.json | jq '.Stats.TotalIssues'
 ```
 
-## Output Formats
+---
 
-### Console Format
+## 📚 ドキュメント
 
-Optimized for terminal viewing with emojis and formatted sections.
+- [📖 詳細なインストールガイド](docs/INSTALL.md)
+- [🔧 使用方法とコマンドリファレンス](docs/USAGE.md)
+- [🤖 自律開発システム詳細](docs/AUTO_DEV.md)
+- [🧪 テストとカバレッジ](docs/TESTING.md)
+- [🤝 貢献ガイド](CONTRIBUTING.md)
 
-### Markdown Format
+---
 
-Detailed report with:
-- Statistics table
-- Label distribution
-- Monthly trend chart (ASCII)
-- Long-standing issues list
-- High-activity issues list
-- Prioritized recommendations
+## 🛠️ 開発
 
-See [examples/sample-report.md](examples/sample-report.md) for a sample.
-
-### JSON Format
-
-Complete analysis data in JSON format for programmatic processing.
-
-## GitHub Token
-
-### Creating a Token
-
-1. Go to GitHub Settings > Developer settings > Personal access tokens > Tokens (classic)
-2. Click "Generate new token"
-3. Select scopes: `public_repo` (for public repos) or `repo` (for private repos)
-4. Copy the token
-
-### Setting the Token
-
-Option 1: Environment variable
-```bash
-export GITHUB_TOKEN=ghp_xxxxxxxxxxxx
-```
-
-Option 2: `.env` file
-```bash
-echo "GITHUB_TOKEN=ghp_xxxxxxxxxxxx" > .env
-```
-
-Option 3: Command flag
-```bash
-./auto-issue-finder analyze owner/repo --token=ghp_xxxxxxxxxxxx
-```
-
-## Development
-
-### Running Tests
+### テスト実行
 
 ```bash
-# Run all tests
+# 全テスト実行
 go test ./...
 
-# Run tests with coverage
+# カバレッジ付き
 go test ./... -cover
 
-# Run tests verbosely
-go test ./... -v
-
-# Check coverage for specific package
+# カバレッジレポート
 go test ./internal/analyzer -coverprofile=coverage.out
 go tool cover -html=coverage.out
 ```
 
-### Test Coverage
-
-- `internal/analyzer`: 96.9%
-- `internal/reporter`: 96.5%
-- Overall: >70%
-
-### Project Structure
+### プロジェクト構造
 
 ```
 auto-issue-finder/
 ├── cmd/
-│   └── analyze/          # Main CLI command
-│       └── main.go
+│   └── analyze/              # CLI エントリポイント
 ├── internal/
-│   ├── github/           # GitHub API client
-│   │   ├── client.go
-│   │   └── client_test.go
-│   ├── analyzer/         # Issue analysis logic
-│   │   ├── analyzer.go
-│   │   └── analyzer_test.go
-│   └── reporter/         # Report generation
-│       ├── reporter.go
-│       └── reporter_test.go
-├── pkg/
-│   └── models/           # Data models
-│       └── models.go
-├── examples/             # Sample outputs
-├── go.mod
-├── go.sum
-├── README.md
-└── CONTRIBUTING.md
+│   ├── github/               # GitHub API クライアント
+│   ├── analyzer/             # Issue 分析ロジック (96.9% coverage)
+│   └── reporter/             # レポート生成 (96.5% coverage)
+├── auto-dev.sh               # 自律開発スクリプト
+├── auto-dev-incremental.sh   # インクリメンタルコミット版
+├── run-overnight.sh          # バックグラウンド実行
+└── install-auto-dev.sh       # インストーラー
 ```
-
-## Contributing
-
-Contributions are welcome! Please see [CONTRIBUTING.md](CONTRIBUTING.md) for details.
-
-### Quick Start for Contributors
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Make your changes
-4. Run tests (`go test ./...`)
-5. Commit your changes (`git commit -m 'Add amazing feature'`)
-6. Push to the branch (`git push origin feature/amazing-feature`)
-7. Open a Pull Request
-
-## Troubleshooting
-
-### "invalid token" Error
-
-Make sure your GitHub token:
-- Has the correct scopes (`repo` or `public_repo`)
-- Is not expired
-- Is correctly set in `.env` or environment variable
-
-### Rate Limiting
-
-GitHub API has rate limits:
-- Authenticated: 5,000 requests/hour
-- Unauthenticated: 60 requests/hour
-
-Use `--verbose` to see rate limit status:
-
-```bash
-./auto-issue-finder analyze owner/repo --verbose
-```
-
-### No Issues Found
-
-Check:
-- Repository exists and is public (or you have access)
-- State filter matches issues (`--state=all` to see all)
-- Label filters are correct
-
-## Roadmap
-
-- [ ] Cache support for faster re-analysis
-- [ ] HTML dashboard output
-- [ ] Multi-repository batch analysis
-- [ ] GitHub Actions integration
-- [ ] Issue timeline analysis
-- [ ] Contributor statistics
-- [ ] Custom analysis rules
-
-## License
-
-MIT License - see [LICENSE](LICENSE) for details
-
-## Credits
-
-Built with:
-- [go-github](https://github.com/google/go-github) - GitHub API client
-- [cobra](https://github.com/spf13/cobra) - CLI framework
-- [godotenv](https://github.com/joho/godotenv) - Environment variable loader
-- [testify](https://github.com/stretchr/testify) - Testing toolkit
-
-## Support
-
-- Report bugs: [GitHub Issues](https://github.com/isiidaisuke0926/auto-issue-finder/issues)
-- Questions: [GitHub Discussions](https://github.com/isiidaisuke0926/auto-issue-finder/discussions)
 
 ---
 
-**Happy analyzing!**
+## 🤝 貢献
+
+貢献を歓迎します！以下の方法で参加できます:
+
+1. 🐛 [Issueを報告](https://github.com/isiidaisuke0926/auto-issue-finder/issues)
+2. 💡 機能提案
+3. 🔧 プルリクエストの送信
+4. 📖 ドキュメントの改善
+
+詳細は [CONTRIBUTING.md](CONTRIBUTING.md) をご覧ください。
+
+---
+
+## 📄 ライセンス
+
+MIT License - 詳細は [LICENSE](LICENSE) をご覧ください。
+
+---
+
+## 🙏 謝辞
+
+使用しているライブラリ:
+- [go-github](https://github.com/google/go-github) - GitHub API client
+- [cobra](https://github.com/spf13/cobra) - CLI framework
+- [godotenv](https://github.com/joho/godotenv) - Environment variables
+- [testify](https://github.com/stretchr/testify) - Testing toolkit
+
+---
+
+**Made with ❤️ and Claude Code**
