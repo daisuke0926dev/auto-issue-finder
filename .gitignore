@@ -65,14 +65,3 @@ temp/
 reports/
 *.md.backup
 analysis.json
-
-# Legacy files (old system artifacts - not needed)
-cmd/executor/
-cmd/parse-tasks/
-cmd/reporter/
-scripts/
-requirements.txt
-start-auto-dev.sh
-README-auto-dev.md
-__pycache__/
-*.py[cod]
