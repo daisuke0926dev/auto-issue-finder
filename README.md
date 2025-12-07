@@ -1,5 +1,112 @@
 # Auto Issue Finder
 
+このリポジトリには2つの主要なツールが含まれています:
+
+1. **Claude Code 自律開発システム** - Claude Codeを使って夜間に自律的に開発を進めるシステム
+2. **GitHub Issue Analyzer** - GitHubリポジトリのIssueを自動分析し、パターン検出と推奨事項を提供するCLIツール
+
+---
+
+## Claude Code 自律開発システム
+
+### 概要
+
+Claude Codeに自律的に開発させるためのシステムです。タスクファイルを作成するだけで、寝ている間にClaude Codeが開発を進めてくれます。
+
+**主な機能:**
+- タスクベースの自律実行
+- バックグラウンド実行対応
+- 自動git commit（タスクごと、または完了時）
+- プログレス追跡とログ出力
+
+### 他のプロジェクトへのインストール
+
+任意のGoプロジェクトでワンライナーでインストール可能:
+
+```bash
+curl -sSL https://raw.githubusercontent.com/isiidaisuke0926/auto-issue-finder/main/install-auto-dev.sh | bash
+```
+
+このコマンドで以下がインストールされます:
+- `auto-dev.sh` - 基本実行スクリプト
+- `auto-dev-with-commits.sh` - 完了後に1つのコミット
+- `auto-dev-incremental.sh` - タスクごとに個別コミット
+- `run-overnight.sh` - バックグラウンド実行
+- `.claude/settings.local.json` - 自動承認設定
+- `tonight-with-tasks.txt.example` - サンプルタスクファイル
+
+### 使い方
+
+#### 1. タスクファイルを作成
+
+```bash
+cp tonight-with-tasks.txt.example tonight.txt
+vim tonight.txt  # タスク内容を編集
+```
+
+タスクファイルの例:
+```markdown
+今夜のタスク: ユーザー認証機能の実装
+
+## 要件
+- JWTベースの認証
+- ログイン/ログアウト機能
+- ミドルウェアでの認証チェック
+- テストコード付き
+
+## 制約
+- Go 1.21以上
+- 既存のコード規約に従う
+```
+
+#### 2. 実行方法を選択
+
+**基本実行（コミットなし）:**
+```bash
+./auto-dev.sh tonight.txt
+```
+
+**完了後に1つのコミット:**
+```bash
+./auto-dev-with-commits.sh tonight.txt
+```
+
+**タスクごとに個別コミット:**
+```bash
+# タスクを '# タスク1', '# タスク2' のように分割
+./auto-dev-incremental.sh tonight.txt
+```
+
+**バックグラウンド実行（寝ている間に開発）:**
+```bash
+./run-overnight.sh tonight.txt
+tail -f nohup.out  # ログ確認
+```
+
+### 設定
+
+`.claude/settings.local.json` で全てのツール使用を自動承認:
+```json
+{
+  "permissions": {
+    "allow": ["Bash", "Read", "Write", "Edit", "Glob", "Grep"],
+    "deny": [],
+    "ask": []
+  }
+}
+```
+
+### ヒント
+
+- タスクはマークダウン形式で記述
+- インクリメンタル実行では `# タスク` または `# Task` で分割
+- バックグラウンド実行時は `nohup.out` でログ確認
+- 難易度の高いタスクほど効果的（3時間以上推奨）
+
+---
+
+## GitHub Issue Analyzer
+
 A powerful CLI tool that automatically analyzes GitHub repository issues, detects patterns, and provides actionable recommendations.
 
 ## Features
