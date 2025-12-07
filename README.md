@@ -185,11 +185,33 @@ cat analysis.json | jq '.Stats.TotalIssues'
 
 ## 🛠️ 開発
 
+### 動作確認
+
+```bash
+# デモスクリプト実行（推奨）
+./demo.sh
+
+# 全テストとカバレッジ確認
+./run-tests.sh --coverage
+
+# HTMLカバレッジレポート生成
+./run-tests.sh --html
+
+# 統合テストも含めて実行
+./run-tests.sh --integration
+```
+
 ### テスト実行
 
 ```bash
 # 全テスト実行
 go test ./...
+
+# ユニットテストのみ
+go test ./internal/...
+
+# 統合テスト
+go test ./test/...
 
 # カバレッジ付き
 go test ./... -cover
@@ -198,6 +220,13 @@ go test ./... -cover
 go test ./internal/analyzer -coverprofile=coverage.out
 go tool cover -html=coverage.out
 ```
+
+### テストカバレッジ
+
+- `internal/analyzer`: 96.9%
+- `internal/reporter`: 96.5%
+- `internal/github`: 9.1% (モックなしAPI呼び出しのため低い)
+- **全体**: 83.0%
 
 ### プロジェクト構造
 
