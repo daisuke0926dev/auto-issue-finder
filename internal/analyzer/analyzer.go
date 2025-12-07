@@ -54,12 +54,10 @@ func (a *Analyzer) calculateStats() models.IssueStats {
 			}
 		}
 
-		// Label distribution
 		for _, label := range issue.Labels {
 			stats.LabelDistribution[label]++
 		}
 
-		// Monthly distribution
 		month := issue.CreatedAt.Format("2006-01")
 		stats.MonthlyDistribution[month]++
 	}
@@ -77,7 +75,6 @@ func (a *Analyzer) detectPatterns() models.IssuePattern {
 		Keywords: make(map[string]int),
 	}
 
-	// Extract keywords from titles
 	stopWords := map[string]bool{
 		"the": true, "a": true, "an": true, "and": true, "or": true,
 		"but": true, "in": true, "on": true, "at": true, "to": true,
@@ -91,27 +88,23 @@ func (a *Analyzer) detectPatterns() models.IssuePattern {
 	for _, issue := range a.issues {
 		words := strings.Fields(strings.ToLower(issue.Title))
 		for _, word := range words {
-			// Clean word
 			word = strings.Trim(word, ".,!?;:()[]{}\"'")
 			if len(word) > 3 && !stopWords[word] {
 				patterns.Keywords[word]++
 			}
 		}
 
-		// Long-standing issues (open for >30 days)
 		if issue.State == "open" {
 			daysSinceCreation := time.Since(issue.CreatedAt).Hours() / 24
-			if daysSinceCreation > 30 {
+			if daysSinceCreation > 30 { // 30 days threshold for long-standing issues
 				patterns.LongStandingIssues = append(patterns.LongStandingIssues, issue)
 			}
 		}
 
-		// Hot topics (many comments)
 		if issue.Comments > 20 {
 			patterns.HotTopics = append(patterns.HotTopics, issue)
 		}
 
-		// Unlabeled issues
 		if len(issue.Labels) == 0 {
 			patterns.UnlabeledIssues = append(patterns.UnlabeledIssues, issue)
 		}
@@ -126,7 +119,6 @@ func (a *Analyzer) detectProblems() models.IssueProblem {
 
 	var bugCount int
 	for _, issue := range a.issues {
-		// Count bugs
 		for _, label := range issue.Labels {
 			if strings.Contains(strings.ToLower(label), "bug") {
 				bugCount++
@@ -134,9 +126,8 @@ func (a *Analyzer) detectProblems() models.IssueProblem {
 			}
 		}
 
-		// Stale issues (not updated in 14 days)
 		daysSinceUpdate := time.Since(issue.UpdatedAt).Hours() / 24
-		if issue.State == "open" && daysSinceUpdate > 14 {
+		if issue.State == "open" && daysSinceUpdate > 14 { // 14 days threshold for stale issues
 			problems.StaleIssues = append(problems.StaleIssues, issue)
 		}
 	}
@@ -145,7 +136,6 @@ func (a *Analyzer) detectProblems() models.IssueProblem {
 		problems.BugRatio = float64(bugCount) / float64(len(a.issues))
 	}
 
-	// Detect potential duplicates
 	problems.PotentialDuplicates = a.findPotentialDuplicates()
 
 	return problems
@@ -224,11 +214,10 @@ func (a *Analyzer) GetTopKeywords(patterns models.IssuePattern, n int) []Keyword
 	return kvList
 }
 
-// GenerateRecommendations creates actionable recommendations
+// GenerateRecommendations creates actionable recommendations based on analysis results
 func (a *Analyzer) GenerateRecommendations(result *models.AnalysisResult) []models.Recommendation {
 	var recommendations []models.Recommendation
 
-	// Unlabeled issues
 	if len(result.Patterns.UnlabeledIssues) > 0 {
 		recommendations = append(recommendations, models.Recommendation{
 			Priority:    "High",
@@ -238,7 +227,6 @@ func (a *Analyzer) GenerateRecommendations(result *models.AnalysisResult) []mode
 		})
 	}
 
-	// Long-standing issues
 	if len(result.Patterns.LongStandingIssues) > 0 {
 		recommendations = append(recommendations, models.Recommendation{
 			Priority:    "Medium",
@@ -248,7 +236,6 @@ func (a *Analyzer) GenerateRecommendations(result *models.AnalysisResult) []mode
 		})
 	}
 
-	// Hot topics
 	if len(result.Patterns.HotTopics) > 0 {
 		recommendations = append(recommendations, models.Recommendation{
 			Priority:    "High",
@@ -258,7 +245,6 @@ func (a *Analyzer) GenerateRecommendations(result *models.AnalysisResult) []mode
 		})
 	}
 
-	// Stale issues
 	if len(result.Problems.StaleIssues) > 0 {
 		recommendations = append(recommendations, models.Recommendation{
 			Priority:    "Low",
@@ -268,7 +254,6 @@ func (a *Analyzer) GenerateRecommendations(result *models.AnalysisResult) []mode
 		})
 	}
 
-	// High bug ratio
 	if result.Problems.BugRatio > 0.5 {
 		recommendations = append(recommendations, models.Recommendation{
 			Priority:    "High",
@@ -278,7 +263,6 @@ func (a *Analyzer) GenerateRecommendations(result *models.AnalysisResult) []mode
 		})
 	}
 
-	// Potential duplicates
 	if len(result.Problems.PotentialDuplicates) > 0 {
 		recommendations = append(recommendations, models.Recommendation{
 			Priority:    "Medium",

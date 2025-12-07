@@ -32,7 +32,6 @@ func (r *Reporter) GenerateMarkdown(recommendations []models.Recommendation) str
 	sb.WriteString(fmt.Sprintf("**Repository:** %s  \n", r.repo))
 	sb.WriteString(fmt.Sprintf("**Generated:** %s  \n\n", r.result.GeneratedAt.Format("2006-01-02 15:04:05")))
 
-	// Statistics
 	sb.WriteString("## 📊 Issue Statistics\n\n")
 	sb.WriteString("| Metric | Value |\n")
 	sb.WriteString("|--------|-------|\n")
@@ -45,7 +44,6 @@ func (r *Reporter) GenerateMarkdown(recommendations []models.Recommendation) str
 		float64(r.result.Stats.ClosedIssues)/float64(r.result.Stats.TotalIssues)*100))
 	sb.WriteString(fmt.Sprintf("| Avg Resolution Time | %.1f days |\n\n", r.result.Stats.AvgResolutionDays))
 
-	// Label Distribution
 	if len(r.result.Stats.LabelDistribution) > 0 {
 		sb.WriteString("## 📋 Label Distribution\n\n")
 		sb.WriteString("| Label | Count | Percentage |\n")
@@ -73,7 +71,6 @@ func (r *Reporter) GenerateMarkdown(recommendations []models.Recommendation) str
 		sb.WriteString("\n")
 	}
 
-	// Monthly trend
 	if len(r.result.Stats.MonthlyDistribution) > 0 {
 		sb.WriteString("## 📈 Monthly Issue Creation Trend\n\n")
 
@@ -100,7 +97,6 @@ func (r *Reporter) GenerateMarkdown(recommendations []models.Recommendation) str
 		sb.WriteString("```\n\n")
 	}
 
-	// Issues needing attention
 	sb.WriteString("## ⚠️  Issues Needing Attention\n\n")
 
 	hasIssues := false
@@ -135,7 +131,6 @@ func (r *Reporter) GenerateMarkdown(recommendations []models.Recommendation) str
 	}
 	sb.WriteString("\n")
 
-	// Long-standing issues detail
 	if len(r.result.Patterns.LongStandingIssues) > 0 && len(r.result.Patterns.LongStandingIssues) <= 10 {
 		sb.WriteString("### Long-Standing Open Issues\n\n")
 		for _, issue := range r.result.Patterns.LongStandingIssues {
@@ -145,7 +140,6 @@ func (r *Reporter) GenerateMarkdown(recommendations []models.Recommendation) str
 		sb.WriteString("\n")
 	}
 
-	// Hot topics detail
 	if len(r.result.Patterns.HotTopics) > 0 && len(r.result.Patterns.HotTopics) <= 10 {
 		sb.WriteString("### High-Activity Issues\n\n")
 		for _, issue := range r.result.Patterns.HotTopics {
@@ -155,7 +149,6 @@ func (r *Reporter) GenerateMarkdown(recommendations []models.Recommendation) str
 		sb.WriteString("\n")
 	}
 
-	// Recommendations
 	if len(recommendations) > 0 {
 		sb.WriteString("## 💡 Recommendations\n\n")
 		for i, rec := range recommendations {
@@ -191,7 +184,6 @@ func (r *Reporter) GenerateConsoleOutput(recommendations []models.Recommendation
 	sb.WriteString(fmt.Sprintf("\n🔍 Analyzing %s...\n", r.repo))
 	sb.WriteString(fmt.Sprintf("✓ Fetched %d issues\n\n", r.result.Stats.TotalIssues))
 
-	// Statistics
 	sb.WriteString("📊 Issue Statistics\n")
 	sb.WriteString("─────────────────────────────────\n")
 	sb.WriteString(fmt.Sprintf("Total Issues:        %d\n", r.result.Stats.TotalIssues))
@@ -203,7 +195,6 @@ func (r *Reporter) GenerateConsoleOutput(recommendations []models.Recommendation
 		float64(r.result.Stats.ClosedIssues)/float64(r.result.Stats.TotalIssues)*100))
 	sb.WriteString(fmt.Sprintf("Avg Resolution Time: %.1f days\n\n", r.result.Stats.AvgResolutionDays))
 
-	// Top labels
 	if len(r.result.Stats.LabelDistribution) > 0 {
 		sb.WriteString("📋 Label Distribution\n")
 		sb.WriteString("─────────────────────────────────\n")
@@ -230,7 +221,6 @@ func (r *Reporter) GenerateConsoleOutput(recommendations []models.Recommendation
 		sb.WriteString("\n")
 	}
 
-	// Attention items
 	sb.WriteString("⚠️  Issues Needing Attention\n")
 	sb.WriteString("─────────────────────────────────\n")
 
@@ -253,7 +243,6 @@ func (r *Reporter) GenerateConsoleOutput(recommendations []models.Recommendation
 	}
 	sb.WriteString("\n")
 
-	// Recommendations
 	if len(recommendations) > 0 {
 		sb.WriteString("💡 Recommendations\n")
 		sb.WriteString("─────────────────────────────────\n")

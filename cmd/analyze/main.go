@@ -48,7 +48,6 @@ Examples:
 		Run:  runAnalyze,
 	}
 
-	// Define flags
 	analyzeCmd.Flags().StringVar(&token, "token", os.Getenv("GITHUB_TOKEN"), "GitHub personal access token (or set GITHUB_TOKEN env var)")
 	analyzeCmd.Flags().StringVar(&state, "state", "all", "Filter by state: open, closed, or all")
 	analyzeCmd.Flags().StringSliceVar(&labels, "labels", []string{}, "Filter by labels (comma-separated)")
@@ -66,30 +65,25 @@ Examples:
 }
 
 func runAnalyze(cmd *cobra.Command, args []string) {
-	// Parse repository
 	repoParts := strings.Split(args[0], "/")
 	if len(repoParts) != 2 {
 		log.Fatal("Repository must be in format: owner/repo")
 	}
 	owner, repo := repoParts[0], repoParts[1]
 
-	// Validate token
 	if token == "" {
 		log.Fatal("GitHub token is required. Set GITHUB_TOKEN environment variable or use --token flag")
 	}
 
-	// Create GitHub client
 	if verbose {
 		log.Println("Creating GitHub client...")
 	}
 	client := githubclient.NewClient(token, verbose)
 
-	// Validate token
 	if err := client.ValidateToken(); err != nil {
 		log.Fatalf("Token validation failed: %v", err)
 	}
 
-	// Fetch issues
 	if format == "console" || output == "" {
 		fmt.Printf("🔍 Analyzing %s/%s...\n", owner, repo)
 	}
@@ -108,7 +102,6 @@ func runAnalyze(cmd *cobra.Command, args []string) {
 		log.Printf("Fetched %d issues", len(issues))
 	}
 
-	// Analyze issues
 	if verbose {
 		log.Println("Analyzing issues...")
 	}
@@ -116,7 +109,6 @@ func runAnalyze(cmd *cobra.Command, args []string) {
 	result := a.Analyze()
 	recommendations := a.GenerateRecommendations(result)
 
-	// Generate report
 	r := reporter.NewReporter(result, args[0])
 	var reportContent string
 
@@ -135,7 +127,6 @@ func runAnalyze(cmd *cobra.Command, args []string) {
 		log.Fatalf("Unknown format: %s (use markdown, json, or console)", format)
 	}
 
-	// Output report
 	if output != "" {
 		err := os.WriteFile(output, []byte(reportContent), 0644)
 		if err != nil {
@@ -146,7 +137,6 @@ func runAnalyze(cmd *cobra.Command, args []string) {
 		fmt.Print(reportContent)
 	}
 
-	// Show summary if saving to file
 	if output != "" && format != "console" {
 		fmt.Printf("\n✓ Analyzed %d issues\n", len(issues))
 		fmt.Printf("✓ Found %d recommendations\n", len(recommendations))
