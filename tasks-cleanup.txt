@@ -1,0 +1,108 @@
+# リポジトリクリーンアップタスク
+
+## タスク1: 不要なファイルの削除
+
+リポジトリをクリーンに保つため、不要なファイルを削除してください。
+
+### 実装内容
+以下のファイル/ディレクトリを削除:
+- `sleepship` (ルートディレクトリのバイナリ)
+- `article.md` (記事ファイル)
+- `tasks-auto-retry.txt` (開発用タスクファイル)
+- `tasks-retry-test.txt` (テスト用タスクファイル)
+- `resume-feature-tasks.txt` (開発用タスクファイル)
+- `_test_backup/` (バックアップディレクトリ)
+- `test/` (テスト出力ディレクトリ)
+- `test_server.go` (テストサーバーファイル)
+- `main_test.go` (ルートのテストファイル)
+
+### 確認
+- `ls -la | grep -E "(sleepship|article.md|tasks-|_test_backup|test/|test_server.go|main_test.go)"`
+
+---
+
+## タスク2: .gitignoreの更新
+
+.gitignore を更新して、不要なファイルがコミットされないようにしてください。
+
+### 実装内容
+以下を追加/更新:
+- `sleepship` (ルートのバイナリを無視)
+- `tasks-*.txt` (開発用タスクファイルを無視、tasks.txt.exampleは除外)
+- `_test_backup/` を追加
+- `test/` を追加
+- 古い `auto-issue-finder` の記述を削除
+
+### 確認
+- `cat .gitignore`
+
+---
+
+## タスク3: README.mdの整理
+
+README.md を見直して、不要な説明を削除し、よりクリーンで分かりやすい内容にしてください。
+
+### 実装内容
+- プロジェクト構造のセクションを最新の状態に更新
+- 不要なセクションがあれば削除
+- 例示を最小限にする
+- 主要機能の説明を簡潔にする
+
+### 確認
+- `cat README.md`
+
+---
+
+## タスク4: .gitignoreにtasks-*.txtを追加
+
+タスクファイルがコミットに含まれないように.gitignoreを更新してください。
+
+### 実装内容
+.gitignoreに以下を確認/追加:
+- `tasks-cleanup.txt` などの開発用タスクファイルが無視されることを確認
+- 既に `tasks-*.txt` のパターンがあればOK、なければ追加
+
+### 確認
+- `cat .gitignore | grep tasks`
+
+---
+
+## タスク5: claude.mdの作成
+
+プロジェクトのルートディレクトリに claude.md を作成してください。
+
+### 実装内容
+claude.md に以下の内容を記載:
+
+**プロジェクト概要**
+- Sleepship は Claude Code による自律開発システム
+- タスクファイルから自動的にコードを実装
+
+**重要: すべてのタスクは sleepship で実行すること**
+- 開発タスクを追加する場合は tasks-*.txt ファイルを作成
+- `./bin/sleepship sync tasks-*.txt` で実行
+- tasks-*.txt ファイルは .gitignore で除外されている
+
+**アーキテクチャ**
+- cmd/sync.go: メインの同期実行ロジック
+- cmd/init.go: タスクファイルの初期化
+- cmd/root.go: CLI ルート
+
+**タスクファイルフォーマット**
+- マークダウン形式
+- `## タスク[番号]: タイトル` で開始
+- `### 確認` セクションで検証コマンドを指定
+
+**リトライ機能**
+- --max-retries オプション（デフォルト: 3回）
+- タスク実行失敗時に自動リトライ
+- 検証失敗時に自動修正+再検証
+
+**開発フロー**
+1. tasks-*.txt を作成
+2. ./bin/sleepship sync tasks-*.txt を実行
+3. ログを確認: tail -f logs/sync-*.log
+4. 完了後、タスクファイルは削除してOK（.gitignoreで除外済み）
+
+### 確認
+- `cat claude.md`
