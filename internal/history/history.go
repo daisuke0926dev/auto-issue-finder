@@ -1,3 +1,4 @@
+// Package history provides task execution history tracking for Sleepship.
 package history
 
 import (

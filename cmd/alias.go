@@ -50,7 +50,7 @@ func init() {
 	aliasCmd.AddCommand(aliasGetCmd)
 }
 
-func runAliasList(cmd *cobra.Command, args []string) error {
+func runAliasList(_ *cobra.Command, _ []string) error {
 	aliases, err := config.LoadAliases()
 	if err != nil {
 		return fmt.Errorf("failed to load aliases: %w", err)
@@ -107,7 +107,7 @@ func runAliasList(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func runAliasGet(cmd *cobra.Command, args []string) error {
+func runAliasGet(_ *cobra.Command, args []string) error {
 	aliasName := args[0]
 
 	aliases, err := config.LoadAliases()

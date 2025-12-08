@@ -13,7 +13,7 @@ func TestLoadAndSave(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() { _ = os.RemoveAll(tempDir) }()
 
 	// Load empty history
 	hist, err := Load(tempDir)
@@ -160,7 +160,7 @@ func TestRecord(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Failed to create temp dir: %v", err)
 	}
-	defer os.RemoveAll(tempDir)
+	defer func() { _ = os.RemoveAll(tempDir) }()
 
 	// Record entry
 	err = Record(tempDir, "tasks-test.txt", "feature/test", true, 10*time.Second, 5, 1, 3, "")

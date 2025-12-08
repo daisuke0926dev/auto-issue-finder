@@ -20,9 +20,9 @@ func TestLoadFromEnv(t *testing.T) {
 	defer func() {
 		for key, val := range originalVars {
 			if val == "" {
-				os.Unsetenv(key)
+				_ = os.Unsetenv(key)
 			} else {
-				os.Setenv(key, val)
+				_ = os.Setenv(key, val)
 			}
 		}
 	}()
@@ -104,16 +104,16 @@ func TestLoadFromEnv(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Clear all env vars first
-			os.Unsetenv("SLEEPSHIP_PROJECT_DIR")
-			os.Unsetenv("SLEEPSHIP_SYNC_DEFAULT_TASK_FILE")
-			os.Unsetenv("SLEEPSHIP_SYNC_MAX_RETRIES")
-			os.Unsetenv("SLEEPSHIP_SYNC_LOG_DIR")
-			os.Unsetenv("SLEEPSHIP_SYNC_START_FROM")
-			os.Unsetenv("SLEEPSHIP_CLAUDE_FLAGS")
+			_ = os.Unsetenv("SLEEPSHIP_PROJECT_DIR")
+			_ = os.Unsetenv("SLEEPSHIP_SYNC_DEFAULT_TASK_FILE")
+			_ = os.Unsetenv("SLEEPSHIP_SYNC_MAX_RETRIES")
+			_ = os.Unsetenv("SLEEPSHIP_SYNC_LOG_DIR")
+			_ = os.Unsetenv("SLEEPSHIP_SYNC_START_FROM")
+			_ = os.Unsetenv("SLEEPSHIP_CLAUDE_FLAGS")
 
 			// Set test env vars
 			for key, val := range tt.envVars {
-				os.Setenv(key, val)
+				_ = os.Setenv(key, val)
 			}
 
 			// Load config

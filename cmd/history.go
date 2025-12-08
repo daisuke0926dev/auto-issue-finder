@@ -37,7 +37,7 @@ func init() {
 	historyCmd.Flags().BoolVar(&historyFailed, "failed", false, "Show only failed executions")
 }
 
-func runHistory(cmd *cobra.Command, args []string) error {
+func runHistory(_ *cobra.Command, _ []string) error {
 	// Get project directory
 	dir, err := os.Getwd()
 	if err != nil {

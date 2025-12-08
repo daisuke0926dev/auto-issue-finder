@@ -117,8 +117,8 @@ func TestLoadAliases(t *testing.T) {
 	t.Run("no config file", func(t *testing.T) {
 		// Change to temp directory
 		oldDir, _ := os.Getwd()
-		defer os.Chdir(oldDir)
-		os.Chdir(tmpDir)
+		defer func() { _ = os.Chdir(oldDir) }()
+		_ = os.Chdir(tmpDir)
 
 		aliases, err := LoadAliases()
 		if err != nil {
@@ -143,8 +143,8 @@ prod = "sync tasks-prod.txt --max-retries=10"
 
 		// Change to temp directory
 		oldDir, _ := os.Getwd()
-		defer os.Chdir(oldDir)
-		os.Chdir(tmpDir)
+		defer func() { _ = os.Chdir(oldDir) }()
+		_ = os.Chdir(tmpDir)
 
 		aliases, err := LoadAliases()
 		if err != nil {
@@ -176,13 +176,13 @@ prod = "sync tasks-prod.txt --max-retries=10"
 
 		// Create a subdirectory and change to it
 		subDir := filepath.Join(tmpDir, "invalid-test")
-		os.Mkdir(subDir, 0755)
+		_ = os.Mkdir(subDir, 0755)
 		oldDir, _ := os.Getwd()
-		defer os.Chdir(oldDir)
-		os.Chdir(subDir)
+		defer func() { _ = os.Chdir(oldDir) }()
+		_ = os.Chdir(subDir)
 
 		// Copy invalid config to current directory
-		os.WriteFile(".sleepship.toml", []byte("invalid toml [[["), 0644)
+		_ = os.WriteFile(".sleepship.toml", []byte("invalid toml [[["), 0644)
 
 		_, err := LoadAliases()
 		if err == nil {

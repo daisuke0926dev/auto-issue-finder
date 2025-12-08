@@ -229,13 +229,13 @@ func writeFile(path, content string) error {
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 	_, err = file.WriteString(content)
 	return err
 }
 
 func removeFile(path string) {
-	os.Remove(path)
+	_ = os.Remove(path)
 }
 
 func TestRecursiveExecution(t *testing.T) {
@@ -338,10 +338,10 @@ func TestGetCurrentRecursionDepth(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Set environment variable
 			if tt.envValue != "" {
-				os.Setenv("SLEEPSHIP_DEPTH", tt.envValue)
-				defer os.Unsetenv("SLEEPSHIP_DEPTH")
+				_ = os.Setenv("SLEEPSHIP_DEPTH", tt.envValue)
+				defer func() { _ = os.Unsetenv("SLEEPSHIP_DEPTH") }()
 			} else {
-				os.Unsetenv("SLEEPSHIP_DEPTH")
+				_ = os.Unsetenv("SLEEPSHIP_DEPTH")
 			}
 
 			// Test the actual function
@@ -522,8 +522,8 @@ func TestRecursionBasic(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Set the SLEEPSHIP_DEPTH environment variable
-			os.Setenv("SLEEPSHIP_DEPTH", fmt.Sprintf("%d", tt.depth))
-			defer os.Unsetenv("SLEEPSHIP_DEPTH")
+			_ = os.Setenv("SLEEPSHIP_DEPTH", fmt.Sprintf("%d", tt.depth))
+			defer func() { _ = os.Unsetenv("SLEEPSHIP_DEPTH") }()
 
 			// Get the current recursion depth
 			depth := getCurrentRecursionDepth()
@@ -571,8 +571,8 @@ func TestDepthLimit(t *testing.T) {
 	for depth := 0; depth <= 4; depth++ {
 		t.Run(fmt.Sprintf("Depth_%d", depth), func(t *testing.T) {
 			// Set depth environment variable
-			os.Setenv("SLEEPSHIP_DEPTH", fmt.Sprintf("%d", depth))
-			defer os.Unsetenv("SLEEPSHIP_DEPTH")
+			_ = os.Setenv("SLEEPSHIP_DEPTH", fmt.Sprintf("%d", depth))
+			defer func() { _ = os.Unsetenv("SLEEPSHIP_DEPTH") }()
 
 			for _, tc := range testCommands {
 				t.Run(tc.name, func(t *testing.T) {
