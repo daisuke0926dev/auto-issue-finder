@@ -233,37 +233,58 @@ func runSync(cmd *cobra.Command, args []string) error {
 			fmt.Printf("\n🔍 Running verification: %s\n", task.Command)
 
 			retryCount := 0
+			verificationPassed := false
 
 			for retryCount <= maxRetries {
 				if err := runCommand(task.Command, f); err != nil {
 					retryCount++
 
 					if retryCount > maxRetries {
-						log.Printf("❌ Verification failed after %d retries: %v\n", maxRetries, err)
-						return fmt.Errorf("verification failed after %d retries: %w", maxRetries, err)
+						log.Printf("❌ 検証が %d 回の試行後も失敗しました: %v\n", maxRetries+1, err)
+						log.Printf("実行を停止します。\n")
+						return fmt.Errorf("verification failed after %d attempts: %w", maxRetries+1, err)
 					}
 
-					log.Printf("❌ Verification failed (attempt %d/%d): %v\n", retryCount, maxRetries, err)
-					log.Printf("Attempting to fix...\n")
+					log.Printf("❌ 検証失敗、修正を試みます（リトライ %d/%d 回目）: %v\n", retryCount, maxRetries, err)
 
 					// Attempt to fix
-					fixPrompt := fmt.Sprintf("前のタスクでエラーが発生しました (試行 %d/%d):\n%v\n\n修正してください。", retryCount, maxRetries, err)
+					fixPrompt := fmt.Sprintf(`検証コマンドが失敗しました（リトライ %d/%d 回目）:
+
+コマンド: %s
+エラー: %v
+
+# 指示
+1. 上記のエラーを修正してください
+2. 修正後、検証が通ることを確認してください
+3. エラーがあれば修正してください
+
+プロジェクトディレクトリ: %s
+
+修正を開始してください。`, retryCount, maxRetries, task.Command, err, projectDir)
+
 					if err := executeClaude(fixPrompt, f); err != nil {
-						log.Printf("❌ Fix failed: %v\n", err)
-						return fmt.Errorf("fix failed after verification error: %w", err)
+						log.Printf("❌ 修正の実行に失敗しました: %v\n", err)
+						// Continue to next retry attempt
+						continue
 					}
 
-					// Continue to retry
+					log.Printf("🔍 修正後、検証を再実行します...\n")
+					// Continue to retry verification
 					continue
 				}
 
 				// Verification passed
+				verificationPassed = true
 				if retryCount > 0 {
-					fmt.Printf("✅ Verification passed (after %d retries)\n", retryCount)
+					fmt.Printf("✅ 検証が %d 回のリトライ後に成功しました\n", retryCount)
 				} else {
 					fmt.Printf("✅ Verification passed\n")
 				}
 				break
+			}
+
+			if !verificationPassed {
+				return fmt.Errorf("verification failed after all retries")
 			}
 		}
 
