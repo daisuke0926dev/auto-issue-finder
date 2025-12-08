@@ -167,11 +167,65 @@ func runSync(cmd *cobra.Command, args []string) error {
 		fmt.Print(taskHeader)
 		f.WriteString(taskHeader)
 
-		// Execute task with Claude
-		if err := executeTask(task, f); err != nil {
-			log.Printf("❌ Task %d failed: %v\n", taskNum, err)
-			log.Printf("Stopping execution.\n")
-			return fmt.Errorf("task %d failed: %w", taskNum, err)
+		// Execute task with Claude with retry logic
+		var lastErr error
+		taskRetryCount := 0
+
+		for taskRetryCount <= maxRetries {
+			if err := executeTask(task, f); err != nil {
+				lastErr = err
+				taskRetryCount++
+
+				if taskRetryCount > maxRetries {
+					log.Printf("❌ タスク %d が %d 回の試行後も失敗しました: %v\n", taskNum, maxRetries+1, err)
+					log.Printf("実行を停止します。\n")
+					return fmt.Errorf("task %d failed after %d attempts: %w", taskNum, maxRetries+1, err)
+				}
+
+				log.Printf("❌ タスク %d の実行に失敗しました。リトライ %d/%d 回目を実行します\n", taskNum, taskRetryCount, maxRetries)
+				log.Printf("エラー内容: %v\n", err)
+
+				// Retry with error context
+				retryPrompt := fmt.Sprintf(`前回のタスク実行でエラーが発生しました (リトライ %d/%d):
+エラー: %v
+
+# タスク
+%s
+
+%s
+
+# 指示
+1. 前回のエラーを修正してください
+2. このタスクを完全に実装してください
+3. 必要なファイルを作成・編集してください
+4. 実装後、必ず動作確認してください
+5. エラーがあれば修正してください
+
+プロジェクトディレクトリ: %s
+
+実装を開始してください。`, taskRetryCount, maxRetries, err, task.Title, task.Description, projectDir)
+
+				if err := executeClaude(retryPrompt, f); err != nil {
+					log.Printf("❌ リトライ実行に失敗しました: %v\n", err)
+					// Continue to next retry attempt
+					continue
+				}
+
+				// Retry succeeded, break out of retry loop
+				lastErr = nil
+				break
+			}
+
+			// Task succeeded on first try
+			break
+		}
+
+		if lastErr != nil {
+			return fmt.Errorf("task %d failed after all retries: %w", taskNum, lastErr)
+		}
+
+		if taskRetryCount > 0 {
+			fmt.Printf("✅ タスク %d が %d 回のリトライ後に成功しました\n", taskNum, taskRetryCount)
 		}
 
 		// Run verification command with retry logic
