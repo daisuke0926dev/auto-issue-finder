@@ -40,6 +40,16 @@
       "start_from": 1,
       "max_retries": 3,
       "branch_name": "feature/history-verify"
+    },
+    {
+      "task_file": "tasks-integration-test.txt",
+      "executed_at": "2025-12-08T22:24:27.02599+09:00",
+      "success": true,
+      "duration": 46562857792,
+      "task_count": 2,
+      "start_from": 1,
+      "max_retries": 2,
+      "branch_name": "feature/integration-test"
     }
   ]
 }
