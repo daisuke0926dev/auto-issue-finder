@@ -478,15 +478,9 @@ sleepship/
 
 ### Lint
 
-コードの品質チェック:
-```bash
-make lint
-```
+このプロジェクトでは、GitHub ActionsでCI時に自動的にgolangci-lintが実行されます。
 
-自動修正:
-```bash
-make lint-fix
-```
+設定ファイル: `.golangci.yml`
 
 ---
 
