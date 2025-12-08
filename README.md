@@ -36,6 +36,9 @@ tail -f logs/sync-*.log
 - **自動エラー修正** - 検証失敗時にClaude Codeが自動で修正を試みる
 - **自動リトライ** - タスク実行と検証の失敗時に自動リトライ（デフォルト3回）
 - **詳細ログ** - 全実行内容をログファイルに記録
+- **環境変数設定** - 環境変数による設定オーバーライド
+- **コマンドエイリアス** - 頻繁に使用するコマンドのショートカット定義
+- **実行履歴管理** - タスク実行履歴の記録と検索
 
 ---
 
@@ -281,6 +284,173 @@ tasks-main.txt          # 階層1
 ```bash
 ./bin/sleepship sync tasks.txt --dir=/path/to/project
 ```
+
+---
+
+## 環境変数による設定
+
+優先順位: **CLIフラグ > 環境変数 > デフォルト値**
+
+### サポートされる環境変数
+
+| 環境変数 | 説明 | デフォルト |
+|---------|------|-----------|
+| `SLEEPSHIP_PROJECT_DIR` | プロジェクトディレクトリ | カレントディレクトリ |
+| `SLEEPSHIP_SYNC_MAX_RETRIES` | 最大リトライ回数 | 3 |
+| `SLEEPSHIP_SYNC_LOG_DIR` | ログ出力ディレクトリ | logs |
+| `SLEEPSHIP_SYNC_START_FROM` | 開始タスク番号 | 1 |
+| `SLEEPSHIP_CLAUDE_FLAGS` | Claude Codeフラグ（カンマ区切り） | - |
+
+### CI/CD環境での使用例
+
+```bash
+# GitHub Actionsでの設定例
+export SLEEPSHIP_PROJECT_DIR=/workspace
+export SLEEPSHIP_SYNC_MAX_RETRIES=10
+export SLEEPSHIP_SYNC_LOG_DIR=/logs
+
+./bin/sleepship sync tasks-ci.txt
+```
+
+### 開発環境での使用例
+
+```bash
+# シェル設定ファイル（.bashrc, .zshrc等）に追加
+export SLEEPSHIP_SYNC_MAX_RETRIES=5
+export SLEEPSHIP_SYNC_LOG_DIR=~/sleepship-logs
+
+# 環境変数が自動的に適用される
+./bin/sleepship sync tasks-dev.txt
+
+# 一時的に設定を変更
+SLEEPSHIP_SYNC_MAX_RETRIES=10 ./bin/sleepship sync tasks-critical.txt
+```
+
+---
+
+## コマンドエイリアス
+
+頻繁に使用するコマンドをエイリアスとして定義できます。
+
+### 設定ファイルの作成
+
+プロジェクトディレクトリまたはホームディレクトリに `.sleepship.toml` を作成：
+
+```toml
+[aliases]
+dev = "sync tasks-dev.txt"
+test = "sync tasks-test.txt --max-retries=5"
+prod = "sync tasks-prod.txt --max-retries=10"
+staging = "sync tasks-staging.txt --dir=/path/to/staging"
+```
+
+### エイリアスの使用
+
+```bash
+# 通常のコマンドの代わりにエイリアスを使用
+./bin/sleepship dev
+./bin/sleepship test
+./bin/sleepship prod
+
+# エイリアス一覧を表示
+./bin/sleepship alias list
+
+# 特定のエイリアスの内容を確認
+./bin/sleepship alias get dev
+```
+
+### 実用的なエイリアス設定例
+
+```toml
+[aliases]
+# 開発フロー別
+quick = "sync tasks-quick.txt --max-retries=1"
+normal = "sync tasks-dev.txt"
+careful = "sync tasks-dev.txt --max-retries=10"
+
+# 環境別
+local = "sync tasks-local.txt"
+staging = "sync tasks-staging.txt --dir=/path/to/staging"
+production = "sync tasks-prod.txt --dir=/path/to/prod --max-retries=10"
+
+# 機能別
+db-migrate = "sync tasks-db-migrate.txt"
+api-deploy = "sync tasks-api-deploy.txt --max-retries=5"
+frontend-build = "sync tasks-frontend-build.txt"
+```
+
+### エイリアスの連鎖
+
+エイリアスから別のエイリアスを参照できます：
+
+```toml
+[aliases]
+base = "sync tasks-base.txt"
+extended = "@base --max-retries=5"  # baseエイリアスを参照
+```
+
+---
+
+## タスク実行履歴
+
+すべてのタスク実行履歴を自動記録し、後から確認できます。
+
+### 履歴の表示
+
+```bash
+# すべての実行履歴を表示
+./bin/sleepship history
+
+# 最新5件の履歴を表示
+./bin/sleepship history --last 5
+
+# 最新の実行結果のみ表示（直前の実行を確認）
+./bin/sleepship history --last 1
+
+# 失敗した実行のみ表示
+./bin/sleepship history --failed
+```
+
+### 履歴に記録される情報
+
+- ✅ タスクファイル名
+- ✅ 実行日時
+- ✅ 成功/失敗ステータス
+- ✅ 実行時間
+- ✅ タスク数
+- ✅ リトライ回数
+- ✅ ブランチ名
+- ✅ エラーメッセージ（失敗時）
+
+### トラブルシューティングでの活用
+
+```bash
+# 1. 最近失敗したタスクを確認
+./bin/sleepship history --failed
+
+# 2. エラーの原因を特定
+# （履歴にエラーメッセージが表示される）
+
+# 3. 失敗したタスクから再実行
+./bin/sleepship sync tasks-feature.txt --start-from=3
+
+# 4. 実行結果を確認
+./bin/sleepship history --last 1
+```
+
+### パフォーマンス分析
+
+```bash
+# 実行時間の長いタスクを特定
+./bin/sleepship history | grep "Duration"
+
+# 成功率の確認（統計情報が表示される）
+./bin/sleepship history
+```
+
+### 履歴ファイルの場所
+
+履歴は `.sleepship/history.json` に保存されます（Git管理対象外）。
 
 ---
 
