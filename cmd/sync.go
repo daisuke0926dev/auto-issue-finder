@@ -12,6 +12,7 @@ import (
 	"strings"
 	"time"
 
+	"github.com/isiidaisuke0926/sleepship/internal/config"
 	"github.com/spf13/cobra"
 )
 
@@ -74,6 +75,49 @@ func init() {
 func runSync(cmd *cobra.Command, args []string) error {
 	taskFile := args[0]
 
+	// Load configuration from environment variables
+	envConfig := config.LoadFromEnv()
+	defaultConfig := config.NewDefaultConfig()
+
+	// Create CLI config from flags
+	cliConfig := &config.Config{
+		ProjectDir: projectDir,
+		LogDir:     logDir,
+		MaxRetries: -1,
+		StartFrom:  -1,
+	}
+
+	// Check if flags were explicitly set
+	if cmd.Flags().Changed("max-retries") {
+		cliConfig.MaxRetries = maxRetries
+	}
+	if cmd.Flags().Changed("start-from") {
+		cliConfig.StartFrom = startFrom
+	}
+
+	// Merge configurations: CLI > Env > Default
+	mergedConfig := config.MergeConfig(cliConfig, config.FromEnv(envConfig), defaultConfig)
+
+	// Apply merged configuration
+	projectDir = mergedConfig.ProjectDir
+	logDir = mergedConfig.LogDir
+	maxRetries = mergedConfig.MaxRetries
+	startFrom = mergedConfig.StartFrom
+
+	// Log configuration source for debugging
+	if envConfig.HasMaxRetries() && !cmd.Flags().Changed("max-retries") {
+		log.Printf("ℹ️  Using max-retries from environment: %d\n", maxRetries)
+	}
+	if envConfig.HasStartFrom() && !cmd.Flags().Changed("start-from") {
+		log.Printf("ℹ️  Using start-from from environment: %d\n", startFrom)
+	}
+	if envConfig.HasLogDir() && !cmd.Flags().Changed("log-dir") {
+		log.Printf("ℹ️  Using log-dir from environment: %s\n", logDir)
+	}
+	if envConfig.HasProjectDir() && !cmd.Flags().Changed("dir") {
+		log.Printf("ℹ️  Using project directory from environment: %s\n", projectDir)
+	}
+
 	// If not running as worker, spawn background process
 	if !worker {
 		return spawnBackgroundWorker(taskFile)
@@ -85,7 +129,7 @@ func runSync(cmd *cobra.Command, args []string) error {
 		log.Printf("🔁 Recursive execution detected (depth: %d/%d)\n", currentDepth, maxRecursionDepth)
 	}
 
-	// Set default project directory to current directory
+	// Set default project directory to current directory if still empty
 	if projectDir == "" {
 		cwd, err := os.Getwd()
 		if err != nil {
