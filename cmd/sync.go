@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"time"
 
@@ -113,17 +114,17 @@ func runSync(cmd *cobra.Command, args []string) error {
 	}
 	defer f.Close()
 
+	// Create branch for this sync execution
+	if err := createBranchForSync(taskFile, f); err != nil {
+		log.Printf("⚠️ Warning: Failed to create branch: %v\n", err)
+		// Continue anyway - branch creation is not critical
+	}
+
 	// Execute tasks
 	for i, task := range tasks {
 		fmt.Printf("========================================\n")
 		fmt.Printf("Task %d/%d: %s\n", i+1, len(tasks), task.Title)
 		fmt.Printf("========================================\n\n")
-
-		// Create and checkout branch for this task
-		if err := createBranchForTask(i+1, f); err != nil {
-			log.Printf("⚠️ Warning: Failed to create branch: %v\n", err)
-			// Continue anyway - branch creation is not critical
-		}
 
 		// Execute task with Claude
 		if err := executeTask(task, f); err != nil {
@@ -287,8 +288,52 @@ func runCommand(command string, logFile *os.File) error {
 	return nil
 }
 
-func createBranchForTask(taskNumber int, logFile *os.File) error {
-	branchName := fmt.Sprintf("task/%d", taskNumber)
+func sanitizeBranchName(name string) string {
+	// Remove file extension
+	name = strings.TrimSuffix(name, ".txt")
+	name = strings.TrimSuffix(name, ".md")
+
+	// Remove common prefixes
+	name = strings.TrimPrefix(name, "tasks-")
+	name = strings.TrimPrefix(name, "task-")
+
+	// Convert camelCase to kebab-case
+	re := regexp.MustCompile(`([a-z0-9])([A-Z])`)
+	name = re.ReplaceAllString(name, "${1}-${2}")
+
+	// Convert to lowercase
+	name = strings.ToLower(name)
+
+	// Remove non-alphanumeric characters (keep hyphens)
+	re = regexp.MustCompile(`[^a-z0-9-]+`)
+	name = re.ReplaceAllString(name, "-")
+
+	// Replace multiple hyphens with single hyphen
+	re = regexp.MustCompile(`-+`)
+	name = re.ReplaceAllString(name, "-")
+
+	// Trim hyphens from start and end
+	name = strings.Trim(name, "-")
+
+	// Limit length
+	if len(name) > 50 {
+		name = name[:50]
+		name = strings.Trim(name, "-")
+	}
+
+	// Fallback if empty
+	if name == "" {
+		name = "sync-" + time.Now().Format("20060102-150405")
+	}
+
+	return name
+}
+
+func createBranchForSync(taskFile string, logFile *os.File) error {
+	// Extract filename from path
+	filename := filepath.Base(taskFile)
+	sanitized := sanitizeBranchName(filename)
+	branchName := fmt.Sprintf("feature/%s", sanitized)
 
 	fmt.Printf("🌿 Creating branch: %s\n", branchName)
 	logFile.WriteString(fmt.Sprintf("\n=== Creating Branch: %s ===\n", branchName))
