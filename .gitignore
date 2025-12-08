@@ -53,6 +53,7 @@ build/
 # Auto-dev system task files
 tonight.txt
 task-*.txt
+test-*.txt
 
 # Temporary directories
 tmp/
