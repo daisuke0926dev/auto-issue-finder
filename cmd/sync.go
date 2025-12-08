@@ -106,12 +106,6 @@ func runSync(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("start-from (%d) exceeds total tasks (%d)", startFrom, len(tasks))
 	}
 
-	fmt.Printf("📋 Total tasks: %d\n", len(tasks))
-	if startFrom > 1 {
-		fmt.Printf("⏩ Starting from task: %d\n", startFrom)
-	}
-	fmt.Printf("📁 Project directory: %s\n\n", projectDir)
-
 	// Create log directory
 	absLogDir := filepath.Join(projectDir, logDir)
 	if err := os.MkdirAll(absLogDir, 0755); err != nil {
@@ -127,6 +121,21 @@ func runSync(cmd *cobra.Command, args []string) error {
 	}
 	defer f.Close()
 
+	// Write task info to both stdout and log file
+	taskInfo := fmt.Sprintf("📋 Total tasks: %d\n", len(tasks))
+	fmt.Print(taskInfo)
+	f.WriteString(taskInfo)
+
+	if startFrom > 1 {
+		startInfo := fmt.Sprintf("⏩ Starting from task: %d\n", startFrom)
+		fmt.Print(startInfo)
+		f.WriteString(startInfo)
+	}
+
+	dirInfo := fmt.Sprintf("📁 Project directory: %s\n\n", projectDir)
+	fmt.Print(dirInfo)
+	f.WriteString(dirInfo)
+
 	// Create branch for this sync execution
 	if err := createBranchForSync(taskFile, f); err != nil {
 		log.Printf("⚠️ Warning: Failed to create branch: %v\n", err)
@@ -139,13 +148,15 @@ func runSync(cmd *cobra.Command, args []string) error {
 
 		// Skip tasks before startFrom
 		if taskNum < startFrom {
-			fmt.Printf("⏭️  Skipping task %d/%d (start-from=%d): %s\n", taskNum, len(tasks), startFrom, task.Title)
+			skipMsg := fmt.Sprintf("⏭️  Skipping task %d/%d (start-from=%d): %s\n", taskNum, len(tasks), startFrom, task.Title)
+			fmt.Print(skipMsg)
+			f.WriteString(skipMsg)
 			continue
 		}
 
-		fmt.Printf("========================================\n")
-		fmt.Printf("Task %d/%d: %s\n", taskNum, len(tasks), task.Title)
-		fmt.Printf("========================================\n\n")
+		taskHeader := fmt.Sprintf("========================================\nTask %d/%d: %s\n========================================\n\n", taskNum, len(tasks), task.Title)
+		fmt.Print(taskHeader)
+		f.WriteString(taskHeader)
 
 		// Execute task with Claude
 		if err := executeTask(task, f); err != nil {
