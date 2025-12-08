@@ -14,7 +14,7 @@ var initCmd = &cobra.Command{
 		"The template includes example tasks that demonstrate the proper format\n" +
 		"for defining tasks, implementation instructions, and verification commands.\n\n" +
 		"Example:\n" +
-		"  auto-issue-finder init tasks.txt",
+		"  sleepship init tasks.txt",
 	Args: cobra.ExactArgs(1),
 	RunE: runInit,
 }
@@ -39,7 +39,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 	fmt.Printf("✅ Task file created: %s\n", taskFile)
 	fmt.Printf("\n📝 Next steps:\n")
 	fmt.Printf("  1. Edit the task file: %s\n", taskFile)
-	fmt.Printf("  2. Run: auto-issue-finder sync %s\n", taskFile)
+	fmt.Printf("  2. Run: sleepship sync %s\n", taskFile)
 
 	return nil
 }

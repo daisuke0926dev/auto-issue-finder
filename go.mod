@@ -1,4 +1,4 @@
-module github.com/isiidaisuke0926/auto-issue-finder
+module github.com/isiidaisuke0926/sleepship
 
 go 1.25.5
 

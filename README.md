@@ -1,4 +1,4 @@
-# Auto Issue Finder
+# Sleepship
 
 [![Go Version](https://img.shields.io/badge/Go-1.21+-00ADD8?style=flat&logo=go)](https://go.dev/)
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
@@ -16,10 +16,10 @@
 
 ```bash
 # 1. ビルド
-go build -o bin/auto-issue-finder
+go build -o bin/sleepship
 
 # 2. タスクファイルを作成（テンプレートから生成）
-./bin/auto-issue-finder init tasks.txt
+./bin/sleepship init tasks.txt
 
 # または手動で作成
 cat > tasks.txt << 'EOF'
@@ -37,13 +37,13 @@ models/user_test.go にユニットテストを追加してください。
 EOF
 
 # 3. 実行（バックグラウンドでタスクを順次実行、エラーは自動修正）
-./bin/auto-issue-finder sync tasks.txt
+./bin/sleepship sync tasks.txt
 # ✅ Started background execution (PID: 12345)
 # 📝 Log file: /path/to/project/logs/sync-20231208-115735.log
 # 💡 Monitor: tail -f /path/to/project/logs/sync-20231208-115735.log
 
 # 別プロジェクトで実行する場合
-./bin/auto-issue-finder sync tasks.txt --dir=/path/to/project
+./bin/sleepship sync tasks.txt --dir=/path/to/project
 
 # ログをリアルタイムで監視
 tail -f logs/sync-*.log
@@ -85,7 +85,7 @@ tail -f logs/sync-*.log
 
 ```bash
 # 実行中のプロセスを確認
-ps aux | grep auto-issue-finder
+ps aux | grep sleepship
 
 # プロセスを停止する場合
 kill <PID>
@@ -96,13 +96,13 @@ kill <PID>
 ## 📦 インストール
 
 ```bash
-git clone https://github.com/isiidaisuke0926/auto-issue-finder.git
-cd auto-issue-finder
+git clone https://github.com/isiidaisuke0926/sleepship.git
+cd sleepship
 go mod download
-go build -o bin/auto-issue-finder
+go build -o bin/sleepship
 
 # 使用可能なコマンド確認
-./bin/auto-issue-finder --help
+./bin/sleepship --help
 ```
 
 ---
@@ -147,17 +147,17 @@ handlers/product.go に HTTP ハンドラーを実装してください。
 EOF
 
 # 実行（カレントディレクトリ、バックグラウンドで実行される）
-./bin/auto-issue-finder sync my-tasks.txt
+./bin/sleepship sync my-tasks.txt
 # → すぐに制御が戻り、バックグラウンドでタスクが実行される
 
 # ログをリアルタイムで監視
 tail -f logs/sync-*.log
 
 # 別プロジェクトで実行
-./bin/auto-issue-finder sync my-tasks.txt --dir=/path/to/your/project
+./bin/sleepship sync my-tasks.txt --dir=/path/to/your/project
 
 # ログディレクトリを指定
-./bin/auto-issue-finder sync my-tasks.txt --log-dir=./custom-logs
+./bin/sleepship sync my-tasks.txt --log-dir=./custom-logs
 ```
 
 **タスクファイルフォーマット:**
@@ -202,7 +202,7 @@ English description is also supported.
 ### テンプレートから始める（推奨）
 
 ```bash
-./bin/auto-issue-finder init my-tasks.txt
+./bin/sleepship init my-tasks.txt
 ```
 
 ### 基本フォーマット
@@ -278,22 +278,22 @@ repositories/user.go にCRUD操作を実装
 
 ```bash
 # ビルド
-go build -o bin/auto-issue-finder
+go build -o bin/sleepship
 
 # テストタスクで動作確認
-./bin/auto-issue-finder sync tasks.txt.example
+./bin/sleepship sync tasks.txt.example
 ```
 
 ### プロジェクト構造
 
 ```
-auto-issue-finder/
+sleepship/
 ├── cmd/
 │   ├── sync.go               # 同期処理型自律開発コマンド
 │   ├── init.go               # タスクファイル初期化コマンド
 │   └── root.go               # CLI ルート
 ├── bin/                      # ビルド成果物
-│   └── auto-issue-finder     # 実行ファイル
+│   └── sleepship     # 実行ファイル
 ├── logs/                     # 実行ログ
 ├── main.go                   # エントリーポイント
 ├── tasks.txt.example         # サンプルタスクファイル
@@ -306,7 +306,7 @@ auto-issue-finder/
 
 貢献を歓迎します！以下の方法で参加できます:
 
-1. 🐛 [Issueを報告](https://github.com/isiidaisuke0926/auto-issue-finder/issues)
+1. 🐛 [Issueを報告](https://github.com/isiidaisuke0926/sleepship/issues)
 2. 💡 機能提案
 3. 🔧 プルリクエストの送信
 4. 📖 ドキュメントの改善

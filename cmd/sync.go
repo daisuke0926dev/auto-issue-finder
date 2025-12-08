@@ -46,9 +46,9 @@ var syncCmd = &cobra.Command{
 		"  - `go build`\n" +
 		"  - `go test ./...`\n\n" +
 		"Examples:\n" +
-		"  auto-issue-finder sync tasks.txt\n" +
-		"  auto-issue-finder sync tasks.txt --dir=/path/to/project\n" +
-		"  auto-issue-finder sync tasks.txt --dir=/path/to/project --log-dir=./logs",
+		"  sleepship sync tasks.txt\n" +
+		"  sleepship sync tasks.txt --dir=/path/to/project\n" +
+		"  sleepship sync tasks.txt --dir=/path/to/project --log-dir=./logs",
 	Args: cobra.ExactArgs(1),
 	RunE: runSync,
 }
