@@ -8,9 +8,9 @@ import (
 )
 
 var rootCmd = &cobra.Command{
-	Use:   "auto-issue-finder",
+	Use:   "sleepship",
 	Short: "Autonomous development system with Claude Code",
-	Long: `auto-issue-finder is a CLI tool for autonomous software development.
+	Long: `sleepship is a CLI tool for autonomous software development.
 It executes development tasks synchronously using Claude Code, with automatic
 error detection and correction.`,
 }

@@ -1,6 +1,6 @@
-# Contributing to Auto Issue Finder
+# Contributing to Sleepship
 
-Thank you for considering contributing to Auto Issue Finder! This document provides guidelines and instructions for contributing.
+Thank you for considering contributing to Sleepship! This document provides guidelines and instructions for contributing.
 
 ## Table of Contents
 
@@ -31,14 +31,14 @@ This project adheres to a code of conduct that all contributors are expected to 
 2. Clone your fork:
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/auto-issue-finder.git
-cd auto-issue-finder
+git clone https://github.com/YOUR_USERNAME/sleepship.git
+cd sleepship
 ```
 
 3. Add the upstream repository:
 
 ```bash
-git remote add upstream https://github.com/isiidaisuke0926/auto-issue-finder.git
+git remote add upstream https://github.com/isiidaisuke0926/sleepship.git
 ```
 
 ## Development Setup
@@ -63,13 +63,13 @@ echo "GITHUB_TOKEN=your_test_token" > .env
 
 ```bash
 # Build the project
-go build -o auto-issue-finder cmd/analyze/main.go
+go build -o sleepship cmd/analyze/main.go
 
 # Run tests
 go test ./...
 
 # Test the CLI
-./auto-issue-finder analyze golang/go --limit=5 --format=console
+./sleepship analyze golang/go --limit=5 --format=console
 ```
 
 ## Running Tests
@@ -167,7 +167,7 @@ git push origin feature/your-feature-name
 ## Project Structure
 
 ```
-auto-issue-finder/
+sleepship/
 ├── cmd/analyze/          # Main CLI application
 ├── internal/github/      # GitHub API integration
 ├── internal/analyzer/    # Issue analysis logic
@@ -186,4 +186,4 @@ By contributing, you agree that your contributions will be licensed under the MI
 
 ---
 
-Thank you for contributing to Auto Issue Finder!
+Thank you for contributing to Sleepship!

@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/isiidaisuke0926/auto-issue-finder/cmd"
+	"github.com/isiidaisuke0926/sleepship/cmd"
 )
 
 func main() {
