@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/isiidaisuke0926/sleepship/internal/config"
+	"github.com/isiidaisuke0926/sleepship/internal/history"
 	"github.com/spf13/cobra"
 )
 
@@ -74,6 +75,7 @@ func init() {
 
 func runSync(cmd *cobra.Command, args []string) error {
 	taskFile := args[0]
+	startTime := time.Now()
 
 	// Load configuration from environment variables
 	envConfig := config.LoadFromEnv()
@@ -201,9 +203,16 @@ func runSync(cmd *cobra.Command, args []string) error {
 	f.WriteString(dirInfo)
 
 	// Create branch for this sync execution
+	var branchName string
 	if err := createBranchForSync(taskFile, f); err != nil {
 		log.Printf("⚠️ Warning: Failed to create branch: %v\n", err)
 		// Continue anyway - branch creation is not critical
+		branchName = ""
+	} else {
+		// Extract branch name from task file
+		filename := filepath.Base(taskFile)
+		sanitized := sanitizeBranchName(filename)
+		branchName = fmt.Sprintf("feature/%s", sanitized)
 	}
 
 	// Execute tasks
@@ -234,6 +243,14 @@ func runSync(cmd *cobra.Command, args []string) error {
 				if taskRetryCount > maxRetries {
 					log.Printf("❌ タスク %d が %d 回の試行後も失敗しました: %v\n", taskNum, maxRetries+1, err)
 					log.Printf("実行を停止します。\n")
+
+					// Record failed execution to history
+					duration := time.Since(startTime)
+					histErr := history.Record(projectDir, taskFile, branchName, false, duration, len(tasks), startFrom, maxRetries, fmt.Sprintf("Task %d failed: %v", taskNum, err))
+					if histErr != nil {
+						log.Printf("⚠️ Warning: Failed to record history: %v\n", histErr)
+					}
+
 					return fmt.Errorf("task %d failed after %d attempts: %w", taskNum, maxRetries+1, err)
 				}
 
@@ -297,6 +314,14 @@ func runSync(cmd *cobra.Command, args []string) error {
 					if retryCount > maxRetries {
 						log.Printf("❌ 検証が %d 回の試行後も失敗しました: %v\n", maxRetries+1, err)
 						log.Printf("実行を停止します。\n")
+
+						// Record failed execution to history
+						duration := time.Since(startTime)
+						histErr := history.Record(projectDir, taskFile, branchName, false, duration, len(tasks), startFrom, maxRetries, fmt.Sprintf("Verification failed for task %d: %v", taskNum, err))
+						if histErr != nil {
+							log.Printf("⚠️ Warning: Failed to record history: %v\n", histErr)
+						}
+
 						return fmt.Errorf("verification failed after %d attempts: %w", maxRetries+1, err)
 					}
 
@@ -357,6 +382,12 @@ func runSync(cmd *cobra.Command, args []string) error {
 	fmt.Printf("✅ All tasks completed successfully!\n")
 	fmt.Printf("========================================\n")
 	fmt.Printf("📝 Log file: %s\n", logFilePath)
+
+	// Record successful execution to history
+	duration := time.Since(startTime)
+	if err := history.Record(projectDir, taskFile, branchName, true, duration, len(tasks), startFrom, maxRetries, ""); err != nil {
+		log.Printf("⚠️ Warning: Failed to record history: %v\n", err)
+	}
 
 	// Generate and display PR information
 	generatePRInfo(tasks, taskFile)
