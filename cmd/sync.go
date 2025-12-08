@@ -308,7 +308,8 @@ func createBranchForTask(taskNumber int, logFile *os.File) error {
 }
 
 func commitTaskChanges(task Task, taskNumber int, logFile *os.File) error {
-	commitMessage := fmt.Sprintf("タスク%d: %s", taskNumber, task.Title)
+	timestamp := time.Now().Format("2006-01-02 15:04:05")
+	commitMessage := fmt.Sprintf("タスク%d: %s (%s)", taskNumber, task.Title, timestamp)
 
 	fmt.Printf("\n💾 Committing changes: %s\n", commitMessage)
 	logFile.WriteString(fmt.Sprintf("\n=== Committing Changes ===\n"))
