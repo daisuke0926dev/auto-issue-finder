@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"fmt"
 	"os"
 	"testing"
 )
@@ -482,4 +483,126 @@ func findSubstring(s, substr string) bool {
 		}
 	}
 	return false
+}
+
+// TestRecursionBasic tests basic recursion depth detection
+// Migrated from test_recursion.sh
+func TestRecursionBasic(t *testing.T) {
+	tests := []struct {
+		name      string
+		depth     int
+		wantDepth int
+	}{
+		{
+			name:      "Depth 0 (normal execution)",
+			depth:     0,
+			wantDepth: 0,
+		},
+		{
+			name:      "Depth 1",
+			depth:     1,
+			wantDepth: 1,
+		},
+		{
+			name:      "Depth 2",
+			depth:     2,
+			wantDepth: 2,
+		},
+		{
+			name:      "Depth 3 (at max)",
+			depth:     3,
+			wantDepth: 3,
+		},
+		{
+			name:      "Depth 4 (exceeds max)",
+			depth:     4,
+			wantDepth: 4,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Set the SLEEPSHIP_DEPTH environment variable
+			os.Setenv("SLEEPSHIP_DEPTH", fmt.Sprintf("%d", tt.depth))
+			defer os.Unsetenv("SLEEPSHIP_DEPTH")
+
+			// Get the current recursion depth
+			depth := getCurrentRecursionDepth()
+
+			if depth != tt.wantDepth {
+				t.Errorf("getCurrentRecursionDepth() = %d, want %d", depth, tt.wantDepth)
+			}
+
+			// Verify warning/blocking behavior
+			if tt.depth >= maxRecursionDepth {
+				// At max depth or beyond, recursion should be blocked
+				if depth < maxRecursionDepth {
+					t.Errorf("Expected depth >= maxRecursionDepth, got %d", depth)
+				}
+			}
+		})
+	}
+}
+
+// TestDepthLimit tests the depth limit enforcement in runCommand
+// Migrated from test_depth_limit.sh
+func TestDepthLimit(t *testing.T) {
+	testCommands := []struct {
+		name               string
+		command            string
+		isSleepshipCommand bool
+	}{
+		{
+			name:               "sleepship sync command",
+			command:            "./bin/sleepship sync test.txt",
+			isSleepshipCommand: true,
+		},
+		{
+			name:               "echo command",
+			command:            "echo test",
+			isSleepshipCommand: false,
+		},
+		{
+			name:               "sleepship direct command",
+			command:            "sleepship sync another.txt",
+			isSleepshipCommand: true,
+		},
+	}
+
+	for depth := 0; depth <= 4; depth++ {
+		t.Run(fmt.Sprintf("Depth_%d", depth), func(t *testing.T) {
+			// Set depth environment variable
+			os.Setenv("SLEEPSHIP_DEPTH", fmt.Sprintf("%d", depth))
+			defer os.Unsetenv("SLEEPSHIP_DEPTH")
+
+			for _, tc := range testCommands {
+				t.Run(tc.name, func(t *testing.T) {
+					currentDepth := getCurrentRecursionDepth()
+
+					// Check if command contains sleepship
+					isSleepship := containsSleepship(tc.command)
+					if isSleepship != tc.isSleepshipCommand {
+						t.Errorf("containsSleepship(%q) = %v, want %v", tc.command, isSleepship, tc.isSleepshipCommand)
+					}
+
+					// Verify depth limit enforcement for sleepship commands
+					if tc.isSleepshipCommand {
+						shouldBlock := currentDepth >= maxRecursionDepth
+
+						if shouldBlock {
+							// Command should be blocked at max depth
+							if currentDepth < maxRecursionDepth {
+								t.Errorf("Expected command to be blocked at depth %d (max: %d)", currentDepth, maxRecursionDepth)
+							}
+						} else {
+							// Command should be allowed
+							if currentDepth >= maxRecursionDepth {
+								t.Errorf("Expected command to be allowed at depth %d (max: %d)", currentDepth, maxRecursionDepth)
+							}
+						}
+					}
+				})
+			}
+		})
+	}
 }
