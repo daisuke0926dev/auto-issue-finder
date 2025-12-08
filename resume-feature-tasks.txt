@@ -1,0 +1,74 @@
+# --start-from機能の実装
+
+## タスク1: コマンドラインフラグの追加
+
+cmd/sync.go に `--start-from` フラグを追加してください。
+
+### 実装
+- `startFrom` という int 型のフラグを追加
+- デフォルト値は 1（最初のタスクから）
+- ヘルプメッセージ: "Start from specified task number (default: 1)"
+
+### 確認
+- `go build -o bin/auto-issue-finder`
+- `./bin/auto-issue-finder sync --help` で新しいフラグが表示される
+
+---
+
+## タスク2: タスクスキップロジックの実装
+
+internal/executor/executor.go にタスクスキップのロジックを追加してください。
+
+### 実装
+- `startFrom` パラメータを受け取れるようにする
+- タスクループで、タスク番号が `startFrom` より小さい場合はスキップ
+- スキップしたタスクはログに記録（例: "⏭️ Skipping task 1/12 (start-from=6)"）
+- スキップしたタスクのコミットは作成しない
+
+### 確認
+- `go build -o bin/auto-issue-finder`
+- `go test ./internal/executor/...`
+
+---
+
+## タスク3: 実際のテストケース作成
+
+テスト用のタスクファイルを作成して動作確認をしてください。
+
+### 実装
+- `test-resume.txt` というテストタスクファイルを作成
+- 3つの簡単なタスク（例: ファイル作成、編集、削除）
+- `--start-from=2` で実行して、タスク1がスキップされることを確認
+
+### 確認
+- `./bin/auto-issue-finder sync test-resume.txt --start-from=2`
+- ログでタスク1がスキップされ、タスク2から実行されることを確認
+
+---
+
+## タスク4: エラーハンドリングの追加
+
+不正な値が指定された場合のエラーハンドリングを追加してください。
+
+### 実装
+- `--start-from=0` や負の数が指定された場合はエラー
+- `--start-from` が総タスク数より大きい場合は警告
+- エラーメッセージは分かりやすく（例: "Error: --start-from must be >= 1"）
+
+### 確認
+- `./bin/auto-issue-finder sync test-resume.txt --start-from=0` でエラー
+- `./bin/auto-issue-finder sync test-resume.txt --start-from=999` で警告
+
+---
+
+## タスク5: README更新
+
+README.md に `--start-from` オプションの使い方を追加してください。
+
+### 実装
+- Usage セクションに `--start-from` の説明を追加
+- 実際の使用例を追加（例: タスク6から再開する場合）
+- Tips: エラーで停止した時の再開方法として紹介
+
+### 確認
+- `cat README.md | grep "start-from"` で記載があることを確認

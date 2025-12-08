@@ -18,6 +18,7 @@ var (
 	projectDir string
 	logDir     string
 	worker     bool // Internal flag for background worker process
+	startFrom  int  // Start from specified task number
 )
 
 type Task struct {
@@ -58,6 +59,7 @@ func init() {
 
 	syncCmd.Flags().StringVar(&projectDir, "dir", "", "Project directory (default: current directory)")
 	syncCmd.Flags().StringVar(&logDir, "log-dir", "logs", "Log output directory")
+	syncCmd.Flags().IntVar(&startFrom, "start-from", 1, "Start from specified task number (default: 1)")
 	syncCmd.Flags().BoolVar(&worker, "worker", false, "Internal: run as background worker")
 	syncCmd.Flags().MarkHidden("worker")
 }
@@ -96,7 +98,18 @@ func runSync(cmd *cobra.Command, args []string) error {
 		return fmt.Errorf("no tasks found in task file")
 	}
 
+	// Validate startFrom value
+	if startFrom < 1 {
+		return fmt.Errorf("start-from must be >= 1")
+	}
+	if startFrom > len(tasks) {
+		return fmt.Errorf("start-from (%d) exceeds total tasks (%d)", startFrom, len(tasks))
+	}
+
 	fmt.Printf("📋 Total tasks: %d\n", len(tasks))
+	if startFrom > 1 {
+		fmt.Printf("⏩ Starting from task: %d\n", startFrom)
+	}
 	fmt.Printf("📁 Project directory: %s\n\n", projectDir)
 
 	// Create log directory
@@ -122,15 +135,22 @@ func runSync(cmd *cobra.Command, args []string) error {
 
 	// Execute tasks
 	for i, task := range tasks {
+		taskNum := i + 1
+
+		// Skip tasks before startFrom
+		if taskNum < startFrom {
+			continue
+		}
+
 		fmt.Printf("========================================\n")
-		fmt.Printf("Task %d/%d: %s\n", i+1, len(tasks), task.Title)
+		fmt.Printf("Task %d/%d: %s\n", taskNum, len(tasks), task.Title)
 		fmt.Printf("========================================\n\n")
 
 		// Execute task with Claude
 		if err := executeTask(task, f); err != nil {
-			log.Printf("❌ Task %d failed: %v\n", i+1, err)
+			log.Printf("❌ Task %d failed: %v\n", taskNum, err)
 			log.Printf("Stopping execution.\n")
-			return fmt.Errorf("task %d failed: %w", i+1, err)
+			return fmt.Errorf("task %d failed: %w", taskNum, err)
 		}
 
 		// Run verification command
@@ -157,12 +177,12 @@ func runSync(cmd *cobra.Command, args []string) error {
 		}
 
 		// Commit changes for this task
-		if err := commitTaskChanges(task, i+1, f); err != nil {
+		if err := commitTaskChanges(task, taskNum, f); err != nil {
 			log.Printf("⚠️ Warning: Failed to commit changes: %v\n", err)
 			// Continue anyway - commit failure is not critical
 		}
 
-		fmt.Printf("\n✅ Task %d completed\n\n", i+1)
+		fmt.Printf("\n✅ Task %d completed\n\n", taskNum)
 		time.Sleep(1 * time.Second)
 	}
 
@@ -510,6 +530,9 @@ func spawnBackgroundWorker(taskFile string) error {
 	}
 	if logDir != "logs" {
 		cmdArgs = append(cmdArgs, "--log-dir", logDir)
+	}
+	if startFrom != 1 {
+		cmdArgs = append(cmdArgs, "--start-from", fmt.Sprintf("%d", startFrom))
 	}
 
 	// Start background process
