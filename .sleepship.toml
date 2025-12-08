@@ -1,0 +1,7 @@
+# Sleepship Configuration
+
+# Aliases for commonly used commands
+[aliases]
+dev = "sync tasks-dev.txt"
+test = "sync tasks-test.txt --max-retries=5"
+prod = "sync tasks-prod.txt --max-retries=10"
