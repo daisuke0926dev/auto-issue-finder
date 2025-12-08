@@ -119,6 +119,12 @@ func runSync(cmd *cobra.Command, args []string) error {
 		fmt.Printf("Task %d/%d: %s\n", i+1, len(tasks), task.Title)
 		fmt.Printf("========================================\n\n")
 
+		// Create and checkout branch for this task
+		if err := createBranchForTask(i+1, f); err != nil {
+			log.Printf("⚠️ Warning: Failed to create branch: %v\n", err)
+			// Continue anyway - branch creation is not critical
+		}
+
 		// Execute task with Claude
 		if err := executeTask(task, f); err != nil {
 			log.Printf("❌ Task %d failed: %v\n", i+1, err)
@@ -147,6 +153,12 @@ func runSync(cmd *cobra.Command, args []string) error {
 				}
 			}
 			fmt.Printf("✅ Verification passed\n")
+		}
+
+		// Commit changes for this task
+		if err := commitTaskChanges(task, i+1, f); err != nil {
+			log.Printf("⚠️ Warning: Failed to commit changes: %v\n", err)
+			// Continue anyway - commit failure is not critical
 		}
 
 		fmt.Printf("\n✅ Task %d completed\n\n", i+1)
@@ -272,6 +284,61 @@ func runCommand(command string, logFile *os.File) error {
 	}
 
 	fmt.Printf("Output: %s\n", string(output))
+	return nil
+}
+
+func createBranchForTask(taskNumber int, logFile *os.File) error {
+	branchName := fmt.Sprintf("task/%d", taskNumber)
+
+	fmt.Printf("🌿 Creating branch: %s\n", branchName)
+	logFile.WriteString(fmt.Sprintf("\n=== Creating Branch: %s ===\n", branchName))
+
+	cmd := exec.Command("git", "checkout", "-b", branchName)
+	cmd.Dir = projectDir
+
+	output, err := cmd.CombinedOutput()
+	logFile.Write(output)
+
+	if err != nil {
+		return fmt.Errorf("failed to create branch: %s\nOutput: %s", err, string(output))
+	}
+
+	fmt.Printf("✅ Branch created: %s\n\n", branchName)
+	return nil
+}
+
+func commitTaskChanges(task Task, taskNumber int, logFile *os.File) error {
+	commitMessage := fmt.Sprintf("タスク%d: %s", taskNumber, task.Title)
+
+	fmt.Printf("\n💾 Committing changes: %s\n", commitMessage)
+	logFile.WriteString(fmt.Sprintf("\n=== Committing Changes ===\n"))
+
+	// Add all changes
+	addCmd := exec.Command("git", "add", ".")
+	addCmd.Dir = projectDir
+	addOutput, err := addCmd.CombinedOutput()
+	logFile.Write(addOutput)
+
+	if err != nil {
+		return fmt.Errorf("failed to add changes: %s\nOutput: %s", err, string(addOutput))
+	}
+
+	// Commit changes
+	commitCmd := exec.Command("git", "commit", "-m", commitMessage)
+	commitCmd.Dir = projectDir
+	commitOutput, err := commitCmd.CombinedOutput()
+	logFile.Write(commitOutput)
+
+	if err != nil {
+		// Check if there are no changes to commit
+		if strings.Contains(string(commitOutput), "nothing to commit") {
+			fmt.Printf("ℹ️ No changes to commit\n")
+			return nil
+		}
+		return fmt.Errorf("failed to commit: %s\nOutput: %s", err, string(commitOutput))
+	}
+
+	fmt.Printf("✅ Changes committed\n")
 	return nil
 }
 
