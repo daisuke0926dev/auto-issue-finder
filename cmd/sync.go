@@ -16,6 +16,7 @@ import (
 var (
 	projectDir string
 	logDir     string
+	worker     bool // Internal flag for background worker process
 )
 
 type Task struct {
@@ -56,10 +57,17 @@ func init() {
 
 	syncCmd.Flags().StringVar(&projectDir, "dir", "", "Project directory (default: current directory)")
 	syncCmd.Flags().StringVar(&logDir, "log-dir", "logs", "Log output directory")
+	syncCmd.Flags().BoolVar(&worker, "worker", false, "Internal: run as background worker")
+	syncCmd.Flags().MarkHidden("worker")
 }
 
 func runSync(cmd *cobra.Command, args []string) error {
 	taskFile := args[0]
+
+	// If not running as worker, spawn background process
+	if !worker {
+		return spawnBackgroundWorker(taskFile)
+	}
 
 	// Set default project directory to current directory
 	if projectDir == "" {
@@ -264,5 +272,69 @@ func runCommand(command string, logFile *os.File) error {
 	}
 
 	fmt.Printf("Output: %s\n", string(output))
+	return nil
+}
+
+func spawnBackgroundWorker(taskFile string) error {
+	// Get current working directory for project dir
+	cwd, err := os.Getwd()
+	if err != nil {
+		return fmt.Errorf("failed to get current directory: %w", err)
+	}
+
+	// Use provided projectDir or default to cwd
+	targetDir := projectDir
+	if targetDir == "" {
+		targetDir = cwd
+	}
+
+	// Create log directory
+	absLogDir := filepath.Join(targetDir, logDir)
+	if err := os.MkdirAll(absLogDir, 0755); err != nil {
+		return fmt.Errorf("failed to create log directory: %w", err)
+	}
+
+	// Generate log file name
+	logFileName := fmt.Sprintf("sync-%s.log", time.Now().Format("20060102-150405"))
+	logFilePath := filepath.Join(absLogDir, logFileName)
+
+	// Open log file
+	logFile, err := os.Create(logFilePath)
+	if err != nil {
+		return fmt.Errorf("failed to create log file: %w", err)
+	}
+	defer logFile.Close()
+
+	// Get executable path
+	executable, err := os.Executable()
+	if err != nil {
+		return fmt.Errorf("failed to get executable path: %w", err)
+	}
+
+	// Build command arguments
+	cmdArgs := []string{"sync", taskFile, "--worker"}
+	if projectDir != "" {
+		cmdArgs = append(cmdArgs, "--dir", projectDir)
+	}
+	if logDir != "logs" {
+		cmdArgs = append(cmdArgs, "--log-dir", logDir)
+	}
+
+	// Start background process
+	cmd := exec.Command(executable, cmdArgs...)
+	cmd.Dir = cwd
+	cmd.Stdout = logFile
+	cmd.Stderr = logFile
+
+	if err := cmd.Start(); err != nil {
+		return fmt.Errorf("failed to start background process: %w", err)
+	}
+
+	// Display status
+	fmt.Printf("✅ Started background execution (PID: %d)\n", cmd.Process.Pid)
+	fmt.Printf("📝 Log file: %s\n", logFilePath)
+	fmt.Printf("💡 Monitor: tail -f %s\n", logFilePath)
+
+	// Don't wait for the process to finish
 	return nil
 }
