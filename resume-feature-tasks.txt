@@ -27,7 +27,7 @@ internal/executor/executor.go にタスクスキップのロジックを追加�
 
 ### 確認
 - `go build -o bin/auto-issue-finder`
-- `go test ./internal/executor/...`
+- `go test ./cmd/...`
 
 ---
 

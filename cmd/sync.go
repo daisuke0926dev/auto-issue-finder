@@ -139,6 +139,7 @@ func runSync(cmd *cobra.Command, args []string) error {
 
 		// Skip tasks before startFrom
 		if taskNum < startFrom {
+			fmt.Printf("⏭️  Skipping task %d/%d (start-from=%d): %s\n", taskNum, len(tasks), startFrom, task.Title)
 			continue
 		}
 
