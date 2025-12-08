@@ -50,10 +50,11 @@ build/
 *.tmp
 *.backup
 
-# Auto-dev system task files
-tonight.txt
+# Task files
+tasks.txt
 task-*.txt
 test-*.txt
+tonight.txt
 
 # Temporary directories
 tmp/
