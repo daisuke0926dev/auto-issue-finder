@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"os"
 	"testing"
 )
 
@@ -156,16 +157,44 @@ func (e *validationError) Error() string {
 	return e.msg
 }
 
-func TestParseRetryTestFile(t *testing.T) {
-	// This test ensures tasks-retry-test.txt can be parsed correctly
-	tasks, err := parseTaskFile("../tasks-retry-test.txt")
+func TestParseTaskFile(t *testing.T) {
+	// Create a temporary task file for testing
+	content := `## タスク1: テストファイルの作成
+
+テストファイルを作成します。
+
+### 確認
+- ` + "`test -f test1.txt`" + `
+
+## タスク2: 存在しないファイルへの追記（意図的エラー）
+
+存在しないファイルへの追記を試みます。
+
+### 確認
+- ` + "`test -f nonexistent.txt`" + `
+
+## タスク3: 複数ファイルの作成と検証
+
+複数のファイルを作成します。
+
+### 確認
+- ` + "`test -f test2.txt && test -f test3.txt`" + `
+`
+
+	tmpFile := "../test_parse_temp.txt"
+	if err := writeFile(tmpFile, content); err != nil {
+		t.Fatalf("Failed to create temp file: %v", err)
+	}
+	defer removeFile(tmpFile)
+
+	tasks, err := parseTaskFile(tmpFile)
 	if err != nil {
-		t.Fatalf("Failed to parse tasks-retry-test.txt: %v", err)
+		t.Fatalf("Failed to parse task file: %v", err)
 	}
 
-	// Should have exactly 6 tasks
-	if len(tasks) != 6 {
-		t.Errorf("Expected 6 tasks, got %d", len(tasks))
+	// Should have exactly 3 tasks
+	if len(tasks) != 3 {
+		t.Errorf("Expected 3 tasks, got %d", len(tasks))
 	}
 
 	// Verify task titles
@@ -173,9 +202,6 @@ func TestParseRetryTestFile(t *testing.T) {
 		"1: テストファイルの作成",
 		"2: 存在しないファイルへの追記（意図的エラー）",
 		"3: 複数ファイルの作成と検証",
-		"4: 条件付きファイル作成（エラーハンドリングテスト）",
-		"5: ファイルの内容検証（厳密な検証）",
-		"6: クリーンアップとサマリー",
 	}
 
 	for i, expectedTitle := range expectedTitles {
@@ -188,18 +214,25 @@ func TestParseRetryTestFile(t *testing.T) {
 		}
 	}
 
-	// Verify task 1 has verification command
-	if len(tasks) > 0 && tasks[0].Command == "" {
-		t.Error("Task 1 should have a verification command")
+	// Verify all tasks have verification commands
+	for i, task := range tasks {
+		if task.Command == "" {
+			t.Errorf("Task %d should have a verification command", i+1)
+		}
 	}
+}
 
-	// Verify task 2 has verification command (important for retry test)
-	if len(tasks) > 1 && tasks[1].Command == "" {
-		t.Error("Task 2 should have a verification command")
+// Helper functions for test file operations
+func writeFile(path, content string) error {
+	file, err := os.Create(path)
+	if err != nil {
+		return err
 	}
+	defer file.Close()
+	_, err = file.WriteString(content)
+	return err
+}
 
-	// Verify task 3 has verification command (tests multiple commands)
-	if len(tasks) > 2 && tasks[2].Command == "" {
-		t.Error("Task 3 should have a verification command")
-	}
+func removeFile(path string) {
+	os.Remove(path)
 }

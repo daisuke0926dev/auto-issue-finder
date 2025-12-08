@@ -8,10 +8,15 @@ import (
 	"os/exec"
 	"path/filepath"
 	"regexp"
+	"strconv"
 	"strings"
 	"time"
 
 	"github.com/spf13/cobra"
+)
+
+const (
+	maxRecursionDepth = 3 // Maximum depth for recursive sleepship calls
 )
 
 var (
@@ -72,6 +77,12 @@ func runSync(cmd *cobra.Command, args []string) error {
 	// If not running as worker, spawn background process
 	if !worker {
 		return spawnBackgroundWorker(taskFile)
+	}
+
+	// Check recursion depth
+	currentDepth := getCurrentRecursionDepth()
+	if currentDepth > 0 {
+		log.Printf("🔁 Recursive execution detected (depth: %d/%d)\n", currentDepth, maxRecursionDepth)
 	}
 
 	// Set default project directory to current directory
@@ -409,8 +420,29 @@ func executeClaude(prompt string, logFile *os.File) error {
 func runCommand(command string, logFile *os.File) error {
 	logFile.WriteString(fmt.Sprintf("\n=== Command Execution: %s ===\n", command))
 
+	// Check if command is a sleepship call
+	isSleepshipCommand := strings.Contains(command, "sleepship") || strings.Contains(command, "./bin/sleepship")
+
+	if isSleepshipCommand {
+		currentDepth := getCurrentRecursionDepth()
+		if currentDepth >= maxRecursionDepth {
+			warningMsg := fmt.Sprintf("⚠️ Maximum recursion depth (%d) reached. Skipping sleepship command: %s\n", maxRecursionDepth, command)
+			fmt.Print(warningMsg)
+			logFile.WriteString(warningMsg)
+			return nil // Don't treat as error, just skip
+		}
+		log.Printf("🔁 Executing recursive sleepship command (depth: %d -> %d)\n", currentDepth, currentDepth+1)
+	}
+
 	cmd := exec.Command("bash", "-c", command)
 	cmd.Dir = projectDir
+
+	// Set environment variables for recursive execution
+	cmd.Env = os.Environ()
+	if isSleepshipCommand {
+		currentDepth := getCurrentRecursionDepth()
+		cmd.Env = append(cmd.Env, fmt.Sprintf("SLEEPSHIP_DEPTH=%d", currentDepth+1))
+	}
 
 	output, err := cmd.CombinedOutput()
 	logFile.Write(output)
@@ -421,6 +453,18 @@ func runCommand(command string, logFile *os.File) error {
 
 	fmt.Printf("Output: %s\n", string(output))
 	return nil
+}
+
+func getCurrentRecursionDepth() int {
+	depthStr := os.Getenv("SLEEPSHIP_DEPTH")
+	if depthStr == "" {
+		return 0
+	}
+	depth, err := strconv.Atoi(depthStr)
+	if err != nil {
+		return 0
+	}
+	return depth
 }
 
 func sanitizeBranchName(name string) string {
