@@ -45,6 +45,9 @@ EOF
 # 別プロジェクトで実行する場合
 ./bin/auto-issue-finder sync tasks.txt --dir=/path/to/project
 
+# タスク6から再開する場合（エラーで停止した時など）
+./bin/auto-issue-finder sync tasks.txt --start-from=6
+
 # ログをリアルタイムで監視
 tail -f logs/sync-*.log
 ```
@@ -158,6 +161,9 @@ tail -f logs/sync-*.log
 
 # ログディレクトリを指定
 ./bin/auto-issue-finder sync my-tasks.txt --log-dir=./custom-logs
+
+# タスク3から再開（前回のタスクでエラーが出た場合など）
+./bin/auto-issue-finder sync my-tasks.txt --start-from=3
 ```
 
 **タスクファイルフォーマット:**
@@ -269,6 +275,33 @@ repositories/user.go にCRUD操作を実装
 ```
 
 **ポイント**: 1タスク = 1つの明確な実装単位
+
+---
+
+## 💡 Tips
+
+### タスク実行中にエラーで停止した場合
+
+タスク実行中にエラーが発生して停止した場合、`--start-from` オプションを使って特定のタスクから再開できます。
+
+**使用例:**
+
+```bash
+# タスク6でエラーが発生して停止した場合、修正後にタスク6から再開
+./bin/auto-issue-finder sync tasks.txt --start-from=6
+
+# タスク1〜5はスキップされ、タスク6から実行される
+```
+
+**活用シーン:**
+- 🔧 エラーで停止したタスクを手動修正した後の再開
+- ⏭️ 特定のタスクまで完了している状態から続行
+- 🧪 特定のタスクだけ再実行したい場合
+
+**注意事項:**
+- 指定したタスク番号以降のタスクが順次実行されます
+- それより前のタスクはすべてスキップされます
+- タスク番号はタスクファイルの `## タスク[番号]:` で指定した番号です
 
 ---
 
