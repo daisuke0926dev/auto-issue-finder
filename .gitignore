@@ -1,5 +1,5 @@
 # Binaries
-auto-issue-finder
+sleepship
 main
 *.exe
 *.exe~
@@ -52,6 +52,7 @@ build/
 
 # Task files
 tasks.txt
+tasks-*.txt
 task-*.txt
 test-*.txt
 tonight.txt
@@ -59,6 +60,8 @@ tonight.txt
 # Temporary directories
 tmp/
 temp/
+_test_backup/
+test/
 
 # Go specific
 *.sum.lock
