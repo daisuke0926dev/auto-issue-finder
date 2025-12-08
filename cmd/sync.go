@@ -100,10 +100,17 @@ func runSync(cmd *cobra.Command, args []string) error {
 
 	// Validate startFrom value
 	if startFrom < 1 {
-		return fmt.Errorf("start-from must be >= 1")
+		return fmt.Errorf("Error: --start-from must be >= 1")
 	}
 	if startFrom > len(tasks) {
-		return fmt.Errorf("start-from (%d) exceeds total tasks (%d)", startFrom, len(tasks))
+		log.Printf("⚠️ Warning: --start-from (%d) exceeds total tasks (%d). No tasks will be executed.\n", startFrom, len(tasks))
+		// Return success but skip all tasks
+		fmt.Printf("📋 Total tasks: %d\n", len(tasks))
+		fmt.Printf("⏩ Starting from task: %d (exceeds total, nothing to do)\n\n", startFrom)
+		fmt.Printf("========================================\n")
+		fmt.Printf("✅ All tasks completed successfully!\n")
+		fmt.Printf("========================================\n")
+		return nil
 	}
 
 	// Create log directory
