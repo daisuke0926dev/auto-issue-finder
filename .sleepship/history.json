@@ -50,6 +50,15 @@
       "start_from": 1,
       "max_retries": 2,
       "branch_name": "feature/integration-test"
+    },
+    {
+      "task_file": "tasks-integration-test.txt",
+      "executed_at": "2025-12-08T22:25:54.477599+09:00",
+      "success": true,
+      "duration": 68988875041,
+      "task_count": 2,
+      "start_from": 1,
+      "max_retries": 1
     }
   ]
 }
