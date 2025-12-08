@@ -48,6 +48,9 @@ EOF
 # タスク6から再開する場合（エラーで停止した時など）
 ./bin/sleepship sync tasks.txt --start-from=6
 
+# リトライ回数を変更する場合（デフォルト: 3回）
+./bin/sleepship sync tasks.txt --max-retries=5
+
 # ログをリアルタイムで監視
 tail -f logs/sync-*.log
 ```
@@ -60,6 +63,7 @@ tail -f logs/sync-*.log
 - 🔄 **真の同期処理** - タスクを順次実行、各タスク完了後に次へ進む
 - ✅ **自動検証** - 各タスク後に確認コマンド実行（`go build`, `go test`等）
 - 🔧 **自動エラー修正** - 検証失敗時にClaude Codeが自動で修正を試みる
+- 🔁 **自動リトライ機能** - タスク実行と検証の失敗時に自動リトライ（デフォルト3回、`--max-retries`で変更可能）
 - 🌐 **汎用性** - `--dir`オプションで任意のプロジェクトで使用可能
 - 📝 **詳細ログ** - 全実行内容をログファイルに記録
 - 🎯 **柔軟なタスク記述** - 日本語対応のマークダウン形式
@@ -164,6 +168,12 @@ tail -f logs/sync-*.log
 
 # タスク3から再開（前回のタスクでエラーが出た場合など）
 ./bin/sleepship sync my-tasks.txt --start-from=3
+
+# リトライ回数をカスタマイズ（デフォルト: 3回）
+./bin/sleepship sync my-tasks.txt --max-retries=5
+
+# すべてのオプションを組み合わせる
+./bin/sleepship sync my-tasks.txt --dir=/path/to/project --start-from=2 --max-retries=5
 ```
 
 **タスクファイルフォーマット:**
@@ -302,6 +312,34 @@ repositories/user.go にCRUD操作を実装
 - 指定したタスク番号以降のタスクが順次実行されます
 - それより前のタスクはすべてスキップされます
 - タスク番号はタスクファイルの `## タスク[番号]:` で指定した番号です
+
+### リトライ回数のカスタマイズ
+
+`--max-retries`オプションを使用して、タスク実行と検証の自動リトライ回数を制御できます。
+
+**使用例:**
+
+```bash
+# リトライ回数を5回に設定
+./bin/sleepship sync tasks.txt --max-retries=5
+
+# リトライを1回だけに制限
+./bin/sleepship sync tasks.txt --max-retries=1
+
+# リトライを無効化（初回のみ実行）
+./bin/sleepship sync tasks.txt --max-retries=0
+```
+
+**リトライ動作:**
+- 🔁 タスク実行失敗時に自動リトライ（Claude Codeが再実行）
+- 🔁 検証コマンド失敗時に自動修正 + 再検証
+- 📝 各リトライの詳細はログファイルに記録
+- ⚙️ デフォルト値: 3回（合計4回の試行：初回 + リトライ3回）
+
+**活用シーン:**
+- 🧪 **複雑なタスク**: リトライ回数を増やして確実に完了
+- ⚡ **シンプルなタスク**: リトライ回数を減らして高速実行
+- 🎯 **厳密なテスト**: リトライを0にして初回のみで判定
 
 ---
 

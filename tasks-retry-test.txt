@@ -1,0 +1,101 @@
+# リトライ機能テスト用タスク
+
+このタスクファイルは、自動リトライ機能が正しく動作することを確認するためのテストケースです。
+意図的に失敗しやすいタスクや、リトライが必要な状況を含んでいます。
+
+## タスク1: テストファイルの作成
+
+test_retry_dir ディレクトリを作成し、その中に simple_test.txt というファイルを作成してください。
+
+### 実装内容
+- test_retry_dir ディレクトリを作成
+- simple_test.txt ファイルに「Hello, Retry Test!」という内容を書き込む
+
+### 確認
+- `cat test_retry_dir/simple_test.txt`
+
+---
+
+## タスク2: 存在しないファイルへの追記（意図的エラー）
+
+存在しないディレクトリ内のファイルに追記を試みてください。
+このタスクは最初は失敗しますが、リトライ時にディレクトリを作成してから成功するはずです。
+
+### 実装内容
+- nonexistent_dir/retry_test.txt に「This is a retry test.」という内容を追記
+- 注意: このディレクトリは存在しないため、最初は失敗します
+- リトライ時にディレクトリを作成してから実行してください
+
+### 確認
+- `cat nonexistent_dir/retry_test.txt`
+
+---
+
+## タスク3: 複数ファイルの作成と検証
+
+test_retry_dir 内に複数のファイルを作成し、それらが正しく作成されているか確認してください。
+
+### 実装内容
+- test_retry_dir/file1.txt に「File 1 content」を書き込む
+- test_retry_dir/file2.txt に「File 2 content」を書き込む
+- test_retry_dir/file3.txt に「File 3 content」を書き込む
+
+### 確認
+- `ls test_retry_dir/*.txt`
+- `cat test_retry_dir/file1.txt`
+- `cat test_retry_dir/file2.txt`
+- `cat test_retry_dir/file3.txt`
+
+---
+
+## タスク4: 条件付きファイル作成（エラーハンドリングテスト）
+
+conditional_test.sh というスクリプトを作成し、実行権限を付与してください。
+
+### 実装内容
+- conditional_test.sh を作成
+- スクリプト内容:
+  - 引数がない場合はエラーメッセージを出力
+  - 引数がある場合はそれをファイル名として test_retry_dir に保存
+- chmod +x で実行権限を付与
+
+### 確認
+- `bash conditional_test.sh test_output.txt`
+- `cat test_retry_dir/test_output.txt`
+
+---
+
+## タスク5: ファイルの内容検証（厳密な検証）
+
+test_retry_dir/validation_test.txt を作成し、特定の内容が含まれているか検証してください。
+
+### 実装内容
+- test_retry_dir/validation_test.txt を作成
+- 内容: 以下の3行を正確に含める
+  ```
+  Line 1: Retry mechanism test
+  Line 2: Max retries configuration
+  Line 3: Verification passed
+  ```
+
+### 確認
+- `grep "Retry mechanism test" test_retry_dir/validation_test.txt`
+- `grep "Max retries configuration" test_retry_dir/validation_test.txt`
+- `grep "Verification passed" test_retry_dir/validation_test.txt`
+
+---
+
+## タスク6: クリーンアップとサマリー
+
+テスト用に作成したファイルを確認し、サマリーファイルを作成してください。
+
+### 実装内容
+- test_retry_dir/summary.txt を作成
+- サマリー内容:
+  - 作成されたファイルの一覧
+  - 各タスクの実行結果
+  - リトライ機能のテスト結果
+
+### 確認
+- `cat test_retry_dir/summary.txt`
+- `ls -la test_retry_dir/`

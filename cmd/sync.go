@@ -19,6 +19,7 @@ var (
 	logDir     string
 	worker     bool // Internal flag for background worker process
 	startFrom  int  // Start from specified task number
+	maxRetries int  // Maximum number of retries for failed verifications (default: 3)
 )
 
 type Task struct {
@@ -60,6 +61,7 @@ func init() {
 	syncCmd.Flags().StringVar(&projectDir, "dir", "", "Project directory (default: current directory)")
 	syncCmd.Flags().StringVar(&logDir, "log-dir", "logs", "Log output directory")
 	syncCmd.Flags().IntVar(&startFrom, "start-from", 1, "Start from specified task number (default: 1)")
+	syncCmd.Flags().IntVar(&maxRetries, "max-retries", 3, "Maximum number of retries for failed verifications (default: 3)")
 	syncCmd.Flags().BoolVar(&worker, "worker", false, "Internal: run as background worker")
 	syncCmd.Flags().MarkHidden("worker")
 }
@@ -165,34 +167,125 @@ func runSync(cmd *cobra.Command, args []string) error {
 		fmt.Print(taskHeader)
 		f.WriteString(taskHeader)
 
-		// Execute task with Claude
-		if err := executeTask(task, f); err != nil {
-			log.Printf("❌ Task %d failed: %v\n", taskNum, err)
-			log.Printf("Stopping execution.\n")
-			return fmt.Errorf("task %d failed: %w", taskNum, err)
+		// Execute task with Claude with retry logic
+		var lastErr error
+		taskRetryCount := 0
+
+		for taskRetryCount <= maxRetries {
+			if err := executeTask(task, f); err != nil {
+				lastErr = err
+				taskRetryCount++
+
+				if taskRetryCount > maxRetries {
+					log.Printf("❌ タスク %d が %d 回の試行後も失敗しました: %v\n", taskNum, maxRetries+1, err)
+					log.Printf("実行を停止します。\n")
+					return fmt.Errorf("task %d failed after %d attempts: %w", taskNum, maxRetries+1, err)
+				}
+
+				log.Printf("❌ タスク %d の実行に失敗しました。リトライ %d/%d 回目を実行します\n", taskNum, taskRetryCount, maxRetries)
+				log.Printf("エラー内容: %v\n", err)
+
+				// Retry with error context
+				retryPrompt := fmt.Sprintf(`前回のタスク実行でエラーが発生しました (リトライ %d/%d):
+エラー: %v
+
+# タスク
+%s
+
+%s
+
+# 指示
+1. 前回のエラーを修正してください
+2. このタスクを完全に実装してください
+3. 必要なファイルを作成・編集してください
+4. 実装後、必ず動作確認してください
+5. エラーがあれば修正してください
+
+プロジェクトディレクトリ: %s
+
+実装を開始してください。`, taskRetryCount, maxRetries, err, task.Title, task.Description, projectDir)
+
+				if err := executeClaude(retryPrompt, f); err != nil {
+					log.Printf("❌ リトライ実行に失敗しました: %v\n", err)
+					// Continue to next retry attempt
+					continue
+				}
+
+				// Retry succeeded, break out of retry loop
+				lastErr = nil
+				break
+			}
+
+			// Task succeeded on first try
+			break
 		}
 
-		// Run verification command
+		if lastErr != nil {
+			return fmt.Errorf("task %d failed after all retries: %w", taskNum, lastErr)
+		}
+
+		if taskRetryCount > 0 {
+			fmt.Printf("✅ タスク %d が %d 回のリトライ後に成功しました\n", taskNum, taskRetryCount)
+		}
+
+		// Run verification command with retry logic
 		if task.Command != "" {
 			fmt.Printf("\n🔍 Running verification: %s\n", task.Command)
-			if err := runCommand(task.Command, f); err != nil {
-				log.Printf("❌ Verification failed: %v\n", err)
-				log.Printf("Attempting to fix...\n")
 
-				// Attempt to fix
-				fixPrompt := fmt.Sprintf("前のタスクでエラーが発生しました:\n%v\n\n修正してください。", err)
-				if err := executeClaude(fixPrompt, f); err != nil {
-					log.Printf("❌ Fix failed: %v\n", err)
-					return fmt.Errorf("fix failed after verification error: %w", err)
-				}
+			retryCount := 0
+			verificationPassed := false
 
-				// Retry verification
+			for retryCount <= maxRetries {
 				if err := runCommand(task.Command, f); err != nil {
-					log.Printf("❌ Still failing after fix: %v\n", err)
-					return fmt.Errorf("verification still failing after fix: %w", err)
+					retryCount++
+
+					if retryCount > maxRetries {
+						log.Printf("❌ 検証が %d 回の試行後も失敗しました: %v\n", maxRetries+1, err)
+						log.Printf("実行を停止します。\n")
+						return fmt.Errorf("verification failed after %d attempts: %w", maxRetries+1, err)
+					}
+
+					log.Printf("❌ 検証失敗、修正を試みます（リトライ %d/%d 回目）: %v\n", retryCount, maxRetries, err)
+
+					// Attempt to fix
+					fixPrompt := fmt.Sprintf(`検証コマンドが失敗しました（リトライ %d/%d 回目）:
+
+コマンド: %s
+エラー: %v
+
+# 指示
+1. 上記のエラーを修正してください
+2. 修正後、検証が通ることを確認してください
+3. エラーがあれば修正してください
+
+プロジェクトディレクトリ: %s
+
+修正を開始してください。`, retryCount, maxRetries, task.Command, err, projectDir)
+
+					if err := executeClaude(fixPrompt, f); err != nil {
+						log.Printf("❌ 修正の実行に失敗しました: %v\n", err)
+						// Continue to next retry attempt
+						continue
+					}
+
+					log.Printf("🔍 修正後、検証を再実行します...\n")
+					// Continue to retry verification
+					continue
 				}
+
+				// Verification passed
+				verificationPassed = true
+				if retryCount > 0 {
+					fmt.Printf("✅ 検証が %d 回のリトライ後に成功しました\n", retryCount)
+				} else {
+					fmt.Printf("✅ Verification passed\n")
+				}
+				break
 			}
-			fmt.Printf("✅ Verification passed\n")
+
+			if !verificationPassed {
+				return fmt.Errorf("verification failed after all retries")
+			}
 		}
 
 		// Commit changes for this task
@@ -552,6 +645,9 @@ func spawnBackgroundWorker(taskFile string) error {
 	}
 	if startFrom != 1 {
 		cmdArgs = append(cmdArgs, "--start-from", fmt.Sprintf("%d", startFrom))
+	}
+	if maxRetries != 3 {
+		cmdArgs = append(cmdArgs, "--max-retries", fmt.Sprintf("%d", maxRetries))
 	}
 
 	// Start background process
