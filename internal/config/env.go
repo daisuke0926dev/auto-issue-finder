@@ -1,3 +1,6 @@
+// Package config provides configuration management for Sleepship.
+// It handles loading and merging configurations from multiple sources including
+// environment variables, CLI flags, and default values.
 package config
 
 import (
@@ -6,16 +9,14 @@ import (
 	"strings"
 )
 
-const envPrefix = "SLEEPSHIP_"
-
 // EnvConfig represents configuration loaded from environment variables
 type EnvConfig struct {
-	ProjectDir       string
-	DefaultTaskFile  string
-	MaxRetries       int
-	LogDir           string
-	StartFrom        int
-	ClaudeFlags      []string
+	ProjectDir      string
+	DefaultTaskFile string
+	MaxRetries      int
+	LogDir          string
+	StartFrom       int
+	ClaudeFlags     []string
 }
 
 // LoadFromEnv loads configuration from environment variables
@@ -76,27 +77,32 @@ func LoadFromEnv() *EnvConfig {
 	return cfg
 }
 
-// HasValue checks if a specific field has been set via environment variable
+// HasProjectDir checks if ProjectDir has been set via environment variable.
 func (c *EnvConfig) HasProjectDir() bool {
 	return c.ProjectDir != ""
 }
 
+// HasDefaultTaskFile checks if DefaultTaskFile has been set via environment variable.
 func (c *EnvConfig) HasDefaultTaskFile() bool {
 	return c.DefaultTaskFile != ""
 }
 
+// HasMaxRetries checks if MaxRetries has been set via environment variable.
 func (c *EnvConfig) HasMaxRetries() bool {
 	return c.MaxRetries >= 0
 }
 
+// HasLogDir checks if LogDir has been set via environment variable.
 func (c *EnvConfig) HasLogDir() bool {
 	return c.LogDir != ""
 }
 
+// HasStartFrom checks if StartFrom has been set via environment variable.
 func (c *EnvConfig) HasStartFrom() bool {
 	return c.StartFrom >= 1
 }
 
+// HasClaudeFlags checks if ClaudeFlags have been set via environment variable.
 func (c *EnvConfig) HasClaudeFlags() bool {
 	return len(c.ClaudeFlags) > 0
 }

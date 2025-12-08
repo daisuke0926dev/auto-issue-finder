@@ -1,3 +1,4 @@
+// Package config provides configuration management for Sleepship.
 package config
 
 import (

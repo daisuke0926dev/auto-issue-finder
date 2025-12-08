@@ -474,6 +474,16 @@ sleepship/
 
 ---
 
+## 開発
+
+### Lint
+
+このプロジェクトでは、GitHub ActionsでCI時に自動的にgolangci-lintが実行されます。
+
+設定ファイル: `.golangci.yml`
+
+---
+
 ## ライセンス
 
 MIT License - 詳細は [LICENSE](LICENSE) をご覧ください。

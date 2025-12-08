@@ -1,3 +1,4 @@
+// Package cmd implements the CLI commands for Sleepship.
 package cmd
 
 import (
@@ -29,6 +30,7 @@ var (
 	maxRetries int  // Maximum number of retries for failed verifications (default: 3)
 )
 
+// Task represents a development task with title, description, and verification command.
 type Task struct {
 	Title       string
 	Description string
@@ -70,9 +72,10 @@ func init() {
 	syncCmd.Flags().IntVar(&startFrom, "start-from", 1, "Start from specified task number (default: 1)")
 	syncCmd.Flags().IntVar(&maxRetries, "max-retries", 3, "Maximum number of retries for failed verifications (default: 3)")
 	syncCmd.Flags().BoolVar(&worker, "worker", false, "Internal: run as background worker")
-	syncCmd.Flags().MarkHidden("worker")
+	_ = syncCmd.Flags().MarkHidden("worker")
 }
 
+//nolint:gocyclo // runSync is complex by nature, handling the full task execution lifecycle
 func runSync(cmd *cobra.Command, args []string) error {
 	taskFile := args[0]
 	startTime := time.Now()
@@ -185,22 +188,22 @@ func runSync(cmd *cobra.Command, args []string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create log file: %w", err)
 	}
-	defer f.Close()
+	defer func() { _ = f.Close() }()
 
 	// Write task info to both stdout and log file
 	taskInfo := fmt.Sprintf("📋 Total tasks: %d\n", len(tasks))
 	fmt.Print(taskInfo)
-	f.WriteString(taskInfo)
+	_, _ = f.WriteString(taskInfo)
 
 	if startFrom > 1 {
 		startInfo := fmt.Sprintf("⏩ Starting from task: %d\n", startFrom)
 		fmt.Print(startInfo)
-		f.WriteString(startInfo)
+		_, _ = f.WriteString(startInfo)
 	}
 
 	dirInfo := fmt.Sprintf("📁 Project directory: %s\n\n", projectDir)
 	fmt.Print(dirInfo)
-	f.WriteString(dirInfo)
+	_, _ = f.WriteString(dirInfo)
 
 	// Create branch for this sync execution
 	var branchName string
@@ -223,13 +226,13 @@ func runSync(cmd *cobra.Command, args []string) error {
 		if taskNum < startFrom {
 			skipMsg := fmt.Sprintf("⏭️  Skipping task %d/%d (start-from=%d): %s\n", taskNum, len(tasks), startFrom, task.Title)
 			fmt.Print(skipMsg)
-			f.WriteString(skipMsg)
+			_, _ = f.WriteString(skipMsg)
 			continue
 		}
 
 		taskHeader := fmt.Sprintf("========================================\nTask %d/%d: %s\n========================================\n\n", taskNum, len(tasks), task.Title)
 		fmt.Print(taskHeader)
-		f.WriteString(taskHeader)
+		_, _ = f.WriteString(taskHeader)
 
 		// Execute task with Claude with retry logic
 		var lastErr error
@@ -400,7 +403,7 @@ func parseTaskFile(filename string) ([]Task, error) {
 	if err != nil {
 		return nil, err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 
 	var tasks []Task
 	var currentTask *Task
@@ -480,9 +483,9 @@ func executeClaude(prompt string, logFile *os.File) error {
 	cmd.Stdout = os.Stdout
 	cmd.Stderr = os.Stderr
 
-	logFile.WriteString(fmt.Sprintf("\n=== Claude Execution ===\n%s\n\n", time.Now().Format("2006-01-02 15:04:05")))
-	logFile.WriteString(prompt)
-	logFile.WriteString("\n\n")
+	_, _ = fmt.Fprintf(logFile, "\n=== Claude Execution ===\n%s\n\n", time.Now().Format("2006-01-02 15:04:05"))
+	_, _ = logFile.WriteString(prompt)
+	_, _ = logFile.WriteString("\n\n")
 
 	fmt.Println("🤖 Executing with Claude...")
 	if err := cmd.Run(); err != nil {
@@ -493,7 +496,7 @@ func executeClaude(prompt string, logFile *os.File) error {
 }
 
 func runCommand(command string, logFile *os.File) error {
-	logFile.WriteString(fmt.Sprintf("\n=== Command Execution: %s ===\n", command))
+	_, _ = fmt.Fprintf(logFile, "\n=== Command Execution: %s ===\n", command)
 
 	// Check if command is a sleepship call
 	isSleepshipCommand := strings.Contains(command, "sleepship") || strings.Contains(command, "./bin/sleepship")
@@ -503,7 +506,7 @@ func runCommand(command string, logFile *os.File) error {
 		if currentDepth >= maxRecursionDepth {
 			warningMsg := fmt.Sprintf("⚠️ Maximum recursion depth (%d) reached. Skipping sleepship command: %s\n", maxRecursionDepth, command)
 			fmt.Print(warningMsg)
-			logFile.WriteString(warningMsg)
+			_, _ = logFile.WriteString(warningMsg)
 			return nil // Don't treat as error, just skip
 		}
 		log.Printf("🔁 Executing recursive sleepship command (depth: %d -> %d)\n", currentDepth, currentDepth+1)
@@ -520,10 +523,10 @@ func runCommand(command string, logFile *os.File) error {
 	}
 
 	output, err := cmd.CombinedOutput()
-	logFile.Write(output)
+	_, _ = logFile.Write(output)
 
 	if err != nil {
-		return fmt.Errorf("%s\nOutput: %s", err, string(output))
+		return fmt.Errorf("%w\nOutput: %s", err, string(output))
 	}
 
 	fmt.Printf("Output: %s\n", string(output))
@@ -590,16 +593,16 @@ func createBranchForSync(taskFile string, logFile *os.File) error {
 	branchName := fmt.Sprintf("feature/%s", sanitized)
 
 	fmt.Printf("🌿 Creating branch: %s\n", branchName)
-	logFile.WriteString(fmt.Sprintf("\n=== Creating Branch: %s ===\n", branchName))
+	_, _ = fmt.Fprintf(logFile, "\n=== Creating Branch: %s ===\n", branchName)
 
 	cmd := exec.Command("git", "checkout", "-b", branchName)
 	cmd.Dir = projectDir
 
 	output, err := cmd.CombinedOutput()
-	logFile.Write(output)
+	_, _ = logFile.Write(output)
 
 	if err != nil {
-		return fmt.Errorf("failed to create branch: %s\nOutput: %s", err, string(output))
+		return fmt.Errorf("failed to create branch: %w\nOutput: %s", err, string(output))
 	}
 
 	fmt.Printf("✅ Branch created: %s\n\n", branchName)
@@ -611,23 +614,23 @@ func commitTaskChanges(task Task, taskNumber int, logFile *os.File) error {
 	commitMessage := fmt.Sprintf("タスク%d: %s (%s)", taskNumber, task.Title, timestamp)
 
 	fmt.Printf("\n💾 Committing changes: %s\n", commitMessage)
-	logFile.WriteString(fmt.Sprintf("\n=== Committing Changes ===\n"))
+	_, _ = logFile.WriteString("\n=== Committing Changes ===\n")
 
 	// Add all changes
 	addCmd := exec.Command("git", "add", ".")
 	addCmd.Dir = projectDir
 	addOutput, err := addCmd.CombinedOutput()
-	logFile.Write(addOutput)
+	_, _ = logFile.Write(addOutput)
 
 	if err != nil {
-		return fmt.Errorf("failed to add changes: %s\nOutput: %s", err, string(addOutput))
+		return fmt.Errorf("failed to add changes: %w\nOutput: %s", err, string(addOutput))
 	}
 
 	// Commit changes
 	commitCmd := exec.Command("git", "commit", "-m", commitMessage)
 	commitCmd.Dir = projectDir
 	commitOutput, err := commitCmd.CombinedOutput()
-	logFile.Write(commitOutput)
+	_, _ = logFile.Write(commitOutput)
 
 	if err != nil {
 		// Check if there are no changes to commit
@@ -635,7 +638,7 @@ func commitTaskChanges(task Task, taskNumber int, logFile *os.File) error {
 			fmt.Printf("ℹ️ No changes to commit\n")
 			return nil
 		}
-		return fmt.Errorf("failed to commit: %s\nOutput: %s", err, string(commitOutput))
+		return fmt.Errorf("failed to commit: %w\nOutput: %s", err, string(commitOutput))
 	}
 
 	fmt.Printf("✅ Changes committed\n")
@@ -746,7 +749,7 @@ func spawnBackgroundWorker(taskFile string) error {
 	if err != nil {
 		return fmt.Errorf("failed to create log file: %w", err)
 	}
-	defer logFile.Close()
+	defer func() { _ = logFile.Close() }()
 
 	// Get executable path
 	executable, err := os.Executable()

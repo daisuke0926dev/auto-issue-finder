@@ -23,7 +23,7 @@ func init() {
 	rootCmd.AddCommand(initCmd)
 }
 
-func runInit(cmd *cobra.Command, args []string) error {
+func runInit(_ *cobra.Command, args []string) error {
 	taskFile := args[0]
 
 	// Check if file already exists
@@ -32,7 +32,7 @@ func runInit(cmd *cobra.Command, args []string) error {
 	}
 
 	// Write template to file
-	if err := os.WriteFile(taskFile, []byte(template), 0644); err != nil {
+	if err := os.WriteFile(taskFile, []byte(template), 0600); err != nil {
 		return fmt.Errorf("failed to create task file: %w", err)
 	}
 

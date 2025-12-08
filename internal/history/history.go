@@ -1,3 +1,4 @@
+// Package history provides task execution history tracking for Sleepship.
 package history
 
 import (
@@ -15,15 +16,15 @@ const (
 
 // Entry represents a single task execution history entry
 type Entry struct {
-	TaskFile      string        `json:"task_file"`
-	ExecutedAt    time.Time     `json:"executed_at"`
-	Success       bool          `json:"success"`
-	Duration      time.Duration `json:"duration"`
-	TaskCount     int           `json:"task_count"`
-	ErrorMessage  string        `json:"error_message,omitempty"`
-	StartFrom     int           `json:"start_from,omitempty"`
-	MaxRetries    int           `json:"max_retries,omitempty"`
-	BranchName    string        `json:"branch_name,omitempty"`
+	TaskFile     string        `json:"task_file"`
+	ExecutedAt   time.Time     `json:"executed_at"`
+	Success      bool          `json:"success"`
+	Duration     time.Duration `json:"duration"`
+	TaskCount    int           `json:"task_count"`
+	ErrorMessage string        `json:"error_message,omitempty"`
+	StartFrom    int           `json:"start_from,omitempty"`
+	MaxRetries   int           `json:"max_retries,omitempty"`
+	BranchName   string        `json:"branch_name,omitempty"`
 }
 
 // History manages task execution history
@@ -68,7 +69,7 @@ func (h *History) Save(projectDir string) error {
 		return fmt.Errorf("failed to marshal history: %w", err)
 	}
 
-	if err := os.WriteFile(historyPath, data, 0644); err != nil {
+	if err := os.WriteFile(historyPath, data, 0600); err != nil {
 		return fmt.Errorf("failed to write history file: %w", err)
 	}
 

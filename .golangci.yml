@@ -1,0 +1,30 @@
+run:
+  timeout: 5m
+
+linters:
+  enable:
+    - misspell
+    - gosec
+    - revive
+    - errorlint
+    - govet
+    - errcheck
+    - staticcheck
+    - unused
+    - ineffassign
+
+linters-settings:
+  misspell:
+    locale: US
+  revive:
+    rules:
+      - name: unexported-return
+        disabled: true
+      - name: exported
+        disabled: false
+
+issues:
+  exclude-files:
+    - ".*_test\\.go$"
+    - ".*_mock\\.go$"
+    - "mock_.*\\.go$"

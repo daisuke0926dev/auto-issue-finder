@@ -229,21 +229,21 @@ func writeFile(path, content string) error {
 	if err != nil {
 		return err
 	}
-	defer file.Close()
+	defer func() { _ = file.Close() }()
 	_, err = file.WriteString(content)
 	return err
 }
 
 func removeFile(path string) {
-	os.Remove(path)
+	_ = os.Remove(path)
 }
 
 func TestRecursiveExecution(t *testing.T) {
 	tests := []struct {
-		name           string
-		currentDepth   int
-		wantSkip       bool
-		wantNewDepth   int
+		name         string
+		currentDepth int
+		wantSkip     bool
+		wantNewDepth int
 	}{
 		{
 			name:         "First level recursion - should execute",
@@ -338,10 +338,10 @@ func TestGetCurrentRecursionDepth(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			// Set environment variable
 			if tt.envValue != "" {
-				os.Setenv("SLEEPSHIP_DEPTH", tt.envValue)
-				defer os.Unsetenv("SLEEPSHIP_DEPTH")
+				_ = os.Setenv("SLEEPSHIP_DEPTH", tt.envValue)
+				defer func() { _ = os.Unsetenv("SLEEPSHIP_DEPTH") }()
 			} else {
-				os.Unsetenv("SLEEPSHIP_DEPTH")
+				_ = os.Unsetenv("SLEEPSHIP_DEPTH")
 			}
 
 			// Test the actual function
@@ -362,9 +362,9 @@ func TestRecursionDepthLimit(t *testing.T) {
 
 	// Test edge cases around the limit
 	tests := []struct {
-		name         string
-		depth        int
-		wantAllowed  bool
+		name        string
+		depth       int
+		wantAllowed bool
 	}{
 		{
 			name:        "Depth 0 - allowed",
@@ -458,15 +458,14 @@ func TestSleepshipCommandDetection(t *testing.T) {
 // Helper function to detect sleepship commands
 func containsSleepship(command string) bool {
 	return os.Getenv("TESTING") != "" ||
-		   (len(command) > 0 && (
-			   containsSubstring(command, "sleepship") ||
-			   containsSubstring(command, "./bin/sleepship")))
+		(len(command) > 0 && (containsSubstring(command, "sleepship") ||
+			containsSubstring(command, "./bin/sleepship")))
 }
 
 // Helper function for substring check
 func containsSubstring(s, substr string) bool {
 	return len(s) >= len(substr) &&
-		   (s == substr || findSubstring(s, substr))
+		(s == substr || findSubstring(s, substr))
 }
 
 // Simple substring finder
@@ -523,8 +522,8 @@ func TestRecursionBasic(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			// Set the SLEEPSHIP_DEPTH environment variable
-			os.Setenv("SLEEPSHIP_DEPTH", fmt.Sprintf("%d", tt.depth))
-			defer os.Unsetenv("SLEEPSHIP_DEPTH")
+			_ = os.Setenv("SLEEPSHIP_DEPTH", fmt.Sprintf("%d", tt.depth))
+			defer func() { _ = os.Unsetenv("SLEEPSHIP_DEPTH") }()
 
 			// Get the current recursion depth
 			depth := getCurrentRecursionDepth()
@@ -572,8 +571,8 @@ func TestDepthLimit(t *testing.T) {
 	for depth := 0; depth <= 4; depth++ {
 		t.Run(fmt.Sprintf("Depth_%d", depth), func(t *testing.T) {
 			// Set depth environment variable
-			os.Setenv("SLEEPSHIP_DEPTH", fmt.Sprintf("%d", depth))
-			defer os.Unsetenv("SLEEPSHIP_DEPTH")
+			_ = os.Setenv("SLEEPSHIP_DEPTH", fmt.Sprintf("%d", depth))
+			defer func() { _ = os.Unsetenv("SLEEPSHIP_DEPTH") }()
 
 			for _, tc := range testCommands {
 				t.Run(tc.name, func(t *testing.T) {

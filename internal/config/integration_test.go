@@ -12,14 +12,14 @@ func TestConfigPriority(t *testing.T) {
 	originalMaxRetries := os.Getenv("SLEEPSHIP_SYNC_MAX_RETRIES")
 	defer func() {
 		if originalMaxRetries == "" {
-			os.Unsetenv("SLEEPSHIP_SYNC_MAX_RETRIES")
+			_ = os.Unsetenv("SLEEPSHIP_SYNC_MAX_RETRIES")
 		} else {
-			os.Setenv("SLEEPSHIP_SYNC_MAX_RETRIES", originalMaxRetries)
+			_ = os.Setenv("SLEEPSHIP_SYNC_MAX_RETRIES", originalMaxRetries)
 		}
 	}()
 
 	// Set environment variable
-	os.Setenv("SLEEPSHIP_SYNC_MAX_RETRIES", "7")
+	_ = os.Setenv("SLEEPSHIP_SYNC_MAX_RETRIES", "7")
 
 	defaultConfig := NewDefaultConfig()
 	envConfig := LoadFromEnv()
@@ -41,7 +41,7 @@ func TestConfigPriority(t *testing.T) {
 	}
 
 	// Test: Default should be used when nothing else is set
-	os.Unsetenv("SLEEPSHIP_SYNC_MAX_RETRIES")
+	_ = os.Unsetenv("SLEEPSHIP_SYNC_MAX_RETRIES")
 	envConfig = LoadFromEnv()
 	merged = MergeConfig(cliConfig, FromEnv(envConfig), defaultConfig)
 	if merged.MaxRetries != 3 {
@@ -62,20 +62,20 @@ func TestConfigMergeAllFields(t *testing.T) {
 	defer func() {
 		for key, val := range envVars {
 			if val == "" {
-				os.Unsetenv(key)
+				_ = os.Unsetenv(key)
 			} else {
-				os.Setenv(key, val)
+				_ = os.Setenv(key, val)
 			}
 		}
 	}()
 
 	// Set all environment variables
-	os.Setenv("SLEEPSHIP_PROJECT_DIR", "/env/project")
-	os.Setenv("SLEEPSHIP_SYNC_DEFAULT_TASK_FILE", "env-tasks.txt")
-	os.Setenv("SLEEPSHIP_SYNC_MAX_RETRIES", "5")
-	os.Setenv("SLEEPSHIP_SYNC_LOG_DIR", "env-logs")
-	os.Setenv("SLEEPSHIP_SYNC_START_FROM", "2")
-	os.Setenv("SLEEPSHIP_CLAUDE_FLAGS", "--env-flag1,--env-flag2")
+	_ = os.Setenv("SLEEPSHIP_PROJECT_DIR", "/env/project")
+	_ = os.Setenv("SLEEPSHIP_SYNC_DEFAULT_TASK_FILE", "env-tasks.txt")
+	_ = os.Setenv("SLEEPSHIP_SYNC_MAX_RETRIES", "5")
+	_ = os.Setenv("SLEEPSHIP_SYNC_LOG_DIR", "env-logs")
+	_ = os.Setenv("SLEEPSHIP_SYNC_START_FROM", "2")
+	_ = os.Setenv("SLEEPSHIP_CLAUDE_FLAGS", "--env-flag1,--env-flag2")
 
 	defaultConfig := NewDefaultConfig()
 	envConfig := LoadFromEnv()
