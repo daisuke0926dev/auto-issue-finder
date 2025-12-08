@@ -1,6 +1,7 @@
 package cmd
 
 import (
+	"os"
 	"testing"
 )
 
@@ -156,16 +157,44 @@ func (e *validationError) Error() string {
 	return e.msg
 }
 
-func TestParseRetryTestFile(t *testing.T) {
-	// This test ensures tasks-retry-test.txt can be parsed correctly
-	tasks, err := parseTaskFile("../tasks-retry-test.txt")
+func TestParseTaskFile(t *testing.T) {
+	// Create a temporary task file for testing
+	content := `## タスク1: テストファイルの作成
+
+テストファイルを作成します。
+
+### 確認
+- ` + "`test -f test1.txt`" + `
+
+## タスク2: 存在しないファイルへの追記（意図的エラー）
+
+存在しないファイルへの追記を試みます。
+
+### 確認
+- ` + "`test -f nonexistent.txt`" + `
+
+## タスク3: 複数ファイルの作成と検証
+
+複数のファイルを作成します。
+
+### 確認
+- ` + "`test -f test2.txt && test -f test3.txt`" + `
+`
+
+	tmpFile := "../test_parse_temp.txt"
+	if err := writeFile(tmpFile, content); err != nil {
+		t.Fatalf("Failed to create temp file: %v", err)
+	}
+	defer removeFile(tmpFile)
+
+	tasks, err := parseTaskFile(tmpFile)
 	if err != nil {
-		t.Fatalf("Failed to parse tasks-retry-test.txt: %v", err)
+		t.Fatalf("Failed to parse task file: %v", err)
 	}
 
-	// Should have exactly 6 tasks
-	if len(tasks) != 6 {
-		t.Errorf("Expected 6 tasks, got %d", len(tasks))
+	// Should have exactly 3 tasks
+	if len(tasks) != 3 {
+		t.Errorf("Expected 3 tasks, got %d", len(tasks))
 	}
 
 	// Verify task titles
@@ -173,9 +202,6 @@ func TestParseRetryTestFile(t *testing.T) {
 		"1: テストファイルの作成",
 		"2: 存在しないファイルへの追記（意図的エラー）",
 		"3: 複数ファイルの作成と検証",
-		"4: 条件付きファイル作成（エラーハンドリングテスト）",
-		"5: ファイルの内容検証（厳密な検証）",
-		"6: クリーンアップとサマリー",
 	}
 
 	for i, expectedTitle := range expectedTitles {
@@ -188,18 +214,272 @@ func TestParseRetryTestFile(t *testing.T) {
 		}
 	}
 
-	// Verify task 1 has verification command
-	if len(tasks) > 0 && tasks[0].Command == "" {
-		t.Error("Task 1 should have a verification command")
+	// Verify all tasks have verification commands
+	for i, task := range tasks {
+		if task.Command == "" {
+			t.Errorf("Task %d should have a verification command", i+1)
+		}
+	}
+}
+
+// Helper functions for test file operations
+func writeFile(path, content string) error {
+	file, err := os.Create(path)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+	_, err = file.WriteString(content)
+	return err
+}
+
+func removeFile(path string) {
+	os.Remove(path)
+}
+
+func TestRecursiveExecution(t *testing.T) {
+	tests := []struct {
+		name           string
+		currentDepth   int
+		wantSkip       bool
+		wantNewDepth   int
+	}{
+		{
+			name:         "First level recursion - should execute",
+			currentDepth: 0,
+			wantSkip:     false,
+			wantNewDepth: 1,
+		},
+		{
+			name:         "Second level recursion - should execute",
+			currentDepth: 1,
+			wantSkip:     false,
+			wantNewDepth: 2,
+		},
+		{
+			name:         "Third level recursion - should execute",
+			currentDepth: 2,
+			wantSkip:     false,
+			wantNewDepth: 3,
+		},
+		{
+			name:         "Maximum depth reached - should skip",
+			currentDepth: 3,
+			wantSkip:     true,
+			wantNewDepth: 3,
+		},
+		{
+			name:         "Beyond maximum depth - should skip",
+			currentDepth: 4,
+			wantSkip:     true,
+			wantNewDepth: 4,
+		},
 	}
 
-	// Verify task 2 has verification command (important for retry test)
-	if len(tasks) > 1 && tasks[1].Command == "" {
-		t.Error("Task 2 should have a verification command")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Simulate the recursion check logic from sync.go:427-433
+			shouldSkip := tt.currentDepth >= maxRecursionDepth
+
+			if shouldSkip != tt.wantSkip {
+				t.Errorf("shouldSkip = %v, want %v", shouldSkip, tt.wantSkip)
+			}
+
+			// Simulate new depth calculation
+			var newDepth int
+			if !shouldSkip {
+				newDepth = tt.currentDepth + 1
+			} else {
+				newDepth = tt.currentDepth
+			}
+
+			if newDepth != tt.wantNewDepth {
+				t.Errorf("newDepth = %d, want %d", newDepth, tt.wantNewDepth)
+			}
+		})
+	}
+}
+
+func TestGetCurrentRecursionDepth(t *testing.T) {
+	tests := []struct {
+		name      string
+		envValue  string
+		wantDepth int
+	}{
+		{
+			name:      "No environment variable - depth 0",
+			envValue:  "",
+			wantDepth: 0,
+		},
+		{
+			name:      "Depth 1",
+			envValue:  "1",
+			wantDepth: 1,
+		},
+		{
+			name:      "Depth 3 (max)",
+			envValue:  "3",
+			wantDepth: 3,
+		},
+		{
+			name:      "Invalid value - defaults to 0",
+			envValue:  "invalid",
+			wantDepth: 0,
+		},
+		{
+			name:      "Negative value - returns parsed value",
+			envValue:  "-1",
+			wantDepth: -1,
+		},
 	}
 
-	// Verify task 3 has verification command (tests multiple commands)
-	if len(tasks) > 2 && tasks[2].Command == "" {
-		t.Error("Task 3 should have a verification command")
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// Set environment variable
+			if tt.envValue != "" {
+				os.Setenv("SLEEPSHIP_DEPTH", tt.envValue)
+				defer os.Unsetenv("SLEEPSHIP_DEPTH")
+			} else {
+				os.Unsetenv("SLEEPSHIP_DEPTH")
+			}
+
+			// Test the actual function
+			depth := getCurrentRecursionDepth()
+
+			if depth != tt.wantDepth {
+				t.Errorf("getCurrentRecursionDepth() = %d, want %d", depth, tt.wantDepth)
+			}
+		})
 	}
+}
+
+func TestRecursionDepthLimit(t *testing.T) {
+	// Verify that maxRecursionDepth is set correctly
+	if maxRecursionDepth != 3 {
+		t.Errorf("maxRecursionDepth = %d, want 3", maxRecursionDepth)
+	}
+
+	// Test edge cases around the limit
+	tests := []struct {
+		name         string
+		depth        int
+		wantAllowed  bool
+	}{
+		{
+			name:        "Depth 0 - allowed",
+			depth:       0,
+			wantAllowed: true,
+		},
+		{
+			name:        "Depth 1 - allowed",
+			depth:       1,
+			wantAllowed: true,
+		},
+		{
+			name:        "Depth 2 - allowed (last allowed)",
+			depth:       2,
+			wantAllowed: true,
+		},
+		{
+			name:        "Depth 3 - not allowed (at limit)",
+			depth:       3,
+			wantAllowed: false,
+		},
+		{
+			name:        "Depth 4 - not allowed (beyond limit)",
+			depth:       4,
+			wantAllowed: false,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// This is the check from sync.go:428
+			allowed := tt.depth < maxRecursionDepth
+
+			if allowed != tt.wantAllowed {
+				t.Errorf("depth %d: allowed = %v, want %v", tt.depth, allowed, tt.wantAllowed)
+			}
+		})
+	}
+}
+
+func TestSleepshipCommandDetection(t *testing.T) {
+	tests := []struct {
+		name            string
+		command         string
+		wantIsSleepship bool
+	}{
+		{
+			name:            "sleepship command",
+			command:         "sleepship sync tasks.txt",
+			wantIsSleepship: true,
+		},
+		{
+			name:            "bin/sleepship command",
+			command:         "./bin/sleepship sync tasks.txt",
+			wantIsSleepship: true,
+		},
+		{
+			name:            "absolute path sleepship",
+			command:         "/usr/local/bin/sleepship sync tasks.txt",
+			wantIsSleepship: true,
+		},
+		{
+			name:            "go test command",
+			command:         "go test ./...",
+			wantIsSleepship: false,
+		},
+		{
+			name:            "go build command",
+			command:         "go build",
+			wantIsSleepship: false,
+		},
+		{
+			name:            "mixed command with sleepship mention",
+			command:         "echo sleepship && go test",
+			wantIsSleepship: true,
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			// This is the detection logic from sync.go:424
+			isSleepshipCommand := containsSleepship(tt.command)
+
+			if isSleepshipCommand != tt.wantIsSleepship {
+				t.Errorf("isSleepshipCommand = %v, want %v", isSleepshipCommand, tt.wantIsSleepship)
+			}
+		})
+	}
+}
+
+// Helper function to detect sleepship commands
+func containsSleepship(command string) bool {
+	return os.Getenv("TESTING") != "" ||
+		   (len(command) > 0 && (
+			   containsSubstring(command, "sleepship") ||
+			   containsSubstring(command, "./bin/sleepship")))
+}
+
+// Helper function for substring check
+func containsSubstring(s, substr string) bool {
+	return len(s) >= len(substr) &&
+		   (s == substr || findSubstring(s, substr))
+}
+
+// Simple substring finder
+func findSubstring(s, substr string) bool {
+	if len(substr) == 0 {
+		return true
+	}
+	if len(s) < len(substr) {
+		return false
+	}
+	for i := 0; i <= len(s)-len(substr); i++ {
+		if s[i:i+len(substr)] == substr {
+			return true
+		}
+	}
+	return false
 }

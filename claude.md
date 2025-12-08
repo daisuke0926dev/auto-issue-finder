@@ -56,6 +56,258 @@ Sleepship には自動リトライ機能が組み込まれています:
 ./bin/sleepship sync tasks-feature.txt --max-retries 5
 ```
 
+## 再帰実行機能（動的タスク生成）
+
+Sleepship はタスクファイル内で `./bin/sleepship` コマンドを実行できます。これにより、実行時に動的にタスクを生成し、段階的な開発フローを実現できます。
+
+### 特徴
+
+- **動的タスク生成**: タスク実行中に新しいタスクファイルを作成して実行可能
+- **再帰深度制限**: 環境変数 `SLEEPSHIP_DEPTH` で再帰深度を管理（最大3階層）
+- **段階的開発**: 調査→計画→実装のフローを自動化
+
+### 使用例
+
+#### パターン1: 調査→計画→実装フロー
+
+```markdown
+## タスク1: APIエンドポイント調査
+
+既存のAPIエンドポイントを調査し、新規エンドポイント実装計画をtasks-api-impl.txtに出力してください。
+
+### 確認
+- `test -f tasks-api-impl.txt`
+
+## タスク2: 実装実行
+
+調査結果を元に実装を実行してください。
+
+### 確認
+- `./bin/sleepship sync tasks-api-impl.txt`
+- `go test ./...`
+```
+
+#### パターン2: サブタスク自動生成
+
+```markdown
+## タスク1: 機能分析とタスク分解
+
+大きな機能要件を分析し、実装可能な単位にタスクを分解してtasks-subtasks.txtに出力してください。
+
+### 確認
+- `test -f tasks-subtasks.txt`
+
+## タスク2: サブタスク実行
+
+分解されたタスクを順次実行してください。
+
+### 確認
+- `./bin/sleepship sync tasks-subtasks.txt`
+```
+
+### 再帰深度の制限
+
+再帰実行は最大3階層まで制限されています:
+
+- **階層1**: メインタスクファイル (`SLEEPSHIP_DEPTH=1`)
+- **階層2**: サブタスクファイル (`SLEEPSHIP_DEPTH=2`)
+- **階層3**: サブサブタスクファイル (`SLEEPSHIP_DEPTH=3`)
+- **階層4以降**: エラーで停止（無限再帰を防止）
+
+深度超過時のエラーメッセージ:
+```
+最大再帰深度(3)に達しました。これ以上のsleepship実行はできません。
+```
+
+### ベストプラクティス
+
+1. **タスクファイル命名規則**: 用途がわかる名前をつける
+   - `tasks-investigation.txt` (調査)
+   - `tasks-plan.txt` (計画)
+   - `tasks-impl.txt` (実装)
+
+2. **検証の徹底**: 生成したタスクファイルの存在確認を行う
+   ```markdown
+   ### 確認
+   - `test -f tasks-impl.txt`
+   ```
+
+3. **明確な指示**: 生成するタスクファイルの内容を具体的に指示
+   ```markdown
+   以下の形式でtasks-impl.txtを作成してください:
+   - タスク1: モデル実装
+   - タスク2: テスト追加
+   ```
+
+4. **段階的実行**: 調査→計画→実装の順で段階を分ける
+   - 各段階で適切な情報を次の段階に渡す
+   - 中間成果物（タスクファイル）を検証する
+
+## 環境変数による設定
+
+Sleepship は環境変数による設定オーバーライドをサポートしています。優先順位は以下の通りです：
+
+**設定の優先順位**: CLIフラグ > 環境変数 > デフォルト値
+
+### サポートされる環境変数
+
+| 環境変数 | 説明 | 例 |
+|---------|------|-----|
+| `SLEEPSHIP_PROJECT_DIR` | プロジェクトディレクトリ | `/path/to/project` |
+| `SLEEPSHIP_SYNC_DEFAULT_TASK_FILE` | デフォルトタスクファイル | `tasks-default.txt` |
+| `SLEEPSHIP_SYNC_MAX_RETRIES` | 最大リトライ回数 | `5` |
+| `SLEEPSHIP_SYNC_LOG_DIR` | ログ出力ディレクトリ | `./logs` |
+| `SLEEPSHIP_SYNC_START_FROM` | 開始タスク番号 | `3` |
+| `SLEEPSHIP_CLAUDE_FLAGS` | Claude Codeフラグ（カンマ区切り） | `--flag1,--flag2` |
+
+### 使用例
+
+#### CI/CD環境での設定
+
+```bash
+# GitHub Actionsなどでの使用例
+export SLEEPSHIP_PROJECT_DIR=/workspace
+export SLEEPSHIP_SYNC_MAX_RETRIES=10
+export SLEEPSHIP_SYNC_LOG_DIR=/logs
+
+./bin/sleepship sync tasks-ci.txt
+```
+
+#### 開発環境での設定
+
+```bash
+# .bashrc や .zshrc に設定
+export SLEEPSHIP_SYNC_MAX_RETRIES=5
+export SLEEPSHIP_SYNC_LOG_DIR=~/sleepship-logs
+
+# デフォルト設定で実行
+./bin/sleepship sync tasks-dev.txt
+```
+
+#### 一時的な設定変更
+
+```bash
+# 特定の実行時のみ設定を変更
+SLEEPSHIP_SYNC_MAX_RETRIES=10 ./bin/sleepship sync tasks-critical.txt
+```
+
+## エイリアス機能
+
+頻繁に使用するコマンドをエイリアスとして定義できます。
+
+### 設定方法
+
+プロジェクトディレクトリまたはホームディレクトリに `.sleepship.toml` ファイルを作成：
+
+```toml
+[aliases]
+dev = "sync tasks-dev.txt"
+test = "sync tasks-test.txt --max-retries=5"
+prod = "sync tasks-prod.txt --max-retries=10"
+staging = "sync tasks-staging.txt --dir=/path/to/staging"
+```
+
+### 使用方法
+
+```bash
+# エイリアスを使用して実行
+./bin/sleepship dev
+./bin/sleepship test
+./bin/sleepship prod
+
+# エイリアス一覧を表示
+./bin/sleepship alias list
+
+# 特定のエイリアスの詳細を表示
+./bin/sleepship alias get dev
+```
+
+### エイリアスの連鎖
+
+エイリアスから別のエイリアスを参照できます：
+
+```toml
+[aliases]
+base = "sync tasks-base.txt"
+extended = "@base --max-retries=5"  # baseエイリアスを参照
+```
+
+### 実用例
+
+```toml
+[aliases]
+# 開発フロー
+quick = "sync tasks-quick.txt --max-retries=1"
+normal = "sync tasks-dev.txt"
+careful = "sync tasks-dev.txt --max-retries=10"
+
+# 環境別
+local = "sync tasks-local.txt"
+staging = "sync tasks-staging.txt --dir=/path/to/staging"
+production = "sync tasks-prod.txt --dir=/path/to/prod --max-retries=10"
+
+# 特定機能
+db-migrate = "sync tasks-db-migrate.txt"
+api-deploy = "sync tasks-api-deploy.txt --max-retries=5"
+```
+
+## タスク実行履歴
+
+Sleepship はすべてのタスク実行履歴を記録します。これにより、過去の実行結果を確認し、トラブルシューティングに活用できます。
+
+### 履歴の表示
+
+```bash
+# すべての実行履歴を表示
+./bin/sleepship history
+
+# 最新5件の履歴を表示
+./bin/sleepship history --last 5
+
+# 最新の実行結果のみ表示
+./bin/sleepship history --last 1
+
+# 失敗した実行のみ表示
+./bin/sleepship history --failed
+```
+
+### 履歴に記録される情報
+
+- タスクファイル名
+- 実行日時
+- 成功/失敗ステータス
+- 実行時間
+- タスク数
+- リトライ回数
+- ブランチ名
+- エラーメッセージ（失敗時）
+
+### 履歴ファイルの場所
+
+履歴は `.sleepship/history.json` に保存されます。このファイルは Git 管理対象外です。
+
+### トラブルシューティングでの活用例
+
+```bash
+# 最近失敗したタスクを確認
+./bin/sleepship history --failed
+
+# 失敗したタスクから再実行
+./bin/sleepship sync tasks-feature.txt --start-from=3
+
+# 実行時間が長いタスクを特定
+./bin/sleepship history | grep "Duration"
+```
+
+### 履歴の統計情報
+
+履歴表示時には以下の統計情報が表示されます：
+
+- 総実行回数
+- 成功回数
+- 失敗回数
+- 合計実行時間
+
 ## 開発フロー
 
 1. **タスクファイルを作成**
@@ -113,6 +365,15 @@ sleepship/
 # リトライ回数を指定して実行
 ./bin/sleepship sync <タスクファイル> --max-retries 5
 
+# エイリアスの管理
+./bin/sleepship alias list              # エイリアス一覧表示
+./bin/sleepship alias get <name>        # 特定のエイリアス表示
+
+# 実行履歴の確認
+./bin/sleepship history                 # すべての履歴表示
+./bin/sleepship history --last 5        # 最新5件表示
+./bin/sleepship history --failed        # 失敗した実行のみ表示
+
 # ヘルプ表示
 ./bin/sleepship --help
 ```
@@ -123,3 +384,4 @@ sleepship/
 - ログファイルは `logs/` ディレクトリに保存されます（Git 管理対象外）
 - すべての開発タスクは Sleepship 経由で実行してください
 - タスクの検証コマンドは必ず記載してください
+- 不要なmd等のファイルは作成しないでください。

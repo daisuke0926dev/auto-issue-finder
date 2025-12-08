@@ -70,3 +70,6 @@ test/
 reports/
 *.md.backup
 analysis.json
+
+# Sleepship internal
+.sleepship/
