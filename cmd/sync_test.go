@@ -155,3 +155,51 @@ type validationError struct {
 func (e *validationError) Error() string {
 	return e.msg
 }
+
+func TestParseRetryTestFile(t *testing.T) {
+	// This test ensures tasks-retry-test.txt can be parsed correctly
+	tasks, err := parseTaskFile("../tasks-retry-test.txt")
+	if err != nil {
+		t.Fatalf("Failed to parse tasks-retry-test.txt: %v", err)
+	}
+
+	// Should have exactly 6 tasks
+	if len(tasks) != 6 {
+		t.Errorf("Expected 6 tasks, got %d", len(tasks))
+	}
+
+	// Verify task titles
+	expectedTitles := []string{
+		"1: テストファイルの作成",
+		"2: 存在しないファイルへの追記（意図的エラー）",
+		"3: 複数ファイルの作成と検証",
+		"4: 条件付きファイル作成（エラーハンドリングテスト）",
+		"5: ファイルの内容検証（厳密な検証）",
+		"6: クリーンアップとサマリー",
+	}
+
+	for i, expectedTitle := range expectedTitles {
+		if i >= len(tasks) {
+			t.Errorf("Task %d not found", i+1)
+			continue
+		}
+		if tasks[i].Title != expectedTitle {
+			t.Errorf("Task %d title = %q, want %q", i+1, tasks[i].Title, expectedTitle)
+		}
+	}
+
+	// Verify task 1 has verification command
+	if len(tasks) > 0 && tasks[0].Command == "" {
+		t.Error("Task 1 should have a verification command")
+	}
+
+	// Verify task 2 has verification command (important for retry test)
+	if len(tasks) > 1 && tasks[1].Command == "" {
+		t.Error("Task 2 should have a verification command")
+	}
+
+	// Verify task 3 has verification command (tests multiple commands)
+	if len(tasks) > 2 && tasks[2].Command == "" {
+		t.Error("Task 3 should have a verification command")
+	}
+}
