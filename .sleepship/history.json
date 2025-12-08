@@ -59,6 +59,17 @@
       "task_count": 2,
       "start_from": 1,
       "max_retries": 1
+    },
+    {
+      "task_file": "tasks-test-cleanup.txt",
+      "executed_at": "2025-12-08T22:46:54.909896+09:00",
+      "success": false,
+      "duration": 315643072792,
+      "task_count": 10,
+      "error_message": "Verification failed for task 2: exit status 1\nOutput: ls: *.sh: No such file or directory\n",
+      "start_from": 1,
+      "max_retries": 3,
+      "branch_name": "feature/test-cleanup"
     }
   ]
 }
