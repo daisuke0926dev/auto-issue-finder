@@ -10,12 +10,12 @@ const envPrefix = "SLEEPSHIP_"
 
 // EnvConfig represents configuration loaded from environment variables
 type EnvConfig struct {
-	ProjectDir       string
-	DefaultTaskFile  string
-	MaxRetries       int
-	LogDir           string
-	StartFrom        int
-	ClaudeFlags      []string
+	ProjectDir      string
+	DefaultTaskFile string
+	MaxRetries      int
+	LogDir          string
+	StartFrom       int
+	ClaudeFlags     []string
 }
 
 // LoadFromEnv loads configuration from environment variables

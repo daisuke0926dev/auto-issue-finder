@@ -1,0 +1,30 @@
+version: "2"
+
+linters:
+  enable:
+    - govet
+    - errcheck
+    - staticcheck
+    - unused
+    - ineffassign
+    - misspell
+    - gocyclo
+    - dupl
+    - revive
+
+formatters:
+  enable:
+    - gofmt
+
+linters-settings:
+  gocyclo:
+    min-complexity: 15
+  dupl:
+    threshold: 100
+
+issues:
+  exclude-rules:
+    - path: _test\.go
+      linters:
+        - gocyclo
+        - dupl

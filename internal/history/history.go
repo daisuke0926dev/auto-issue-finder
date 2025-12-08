@@ -15,15 +15,15 @@ const (
 
 // Entry represents a single task execution history entry
 type Entry struct {
-	TaskFile      string        `json:"task_file"`
-	ExecutedAt    time.Time     `json:"executed_at"`
-	Success       bool          `json:"success"`
-	Duration      time.Duration `json:"duration"`
-	TaskCount     int           `json:"task_count"`
-	ErrorMessage  string        `json:"error_message,omitempty"`
-	StartFrom     int           `json:"start_from,omitempty"`
-	MaxRetries    int           `json:"max_retries,omitempty"`
-	BranchName    string        `json:"branch_name,omitempty"`
+	TaskFile     string        `json:"task_file"`
+	ExecutedAt   time.Time     `json:"executed_at"`
+	Success      bool          `json:"success"`
+	Duration     time.Duration `json:"duration"`
+	TaskCount    int           `json:"task_count"`
+	ErrorMessage string        `json:"error_message,omitempty"`
+	StartFrom    int           `json:"start_from,omitempty"`
+	MaxRetries   int           `json:"max_retries,omitempty"`
+	BranchName   string        `json:"branch_name,omitempty"`
 }
 
 // History manages task execution history

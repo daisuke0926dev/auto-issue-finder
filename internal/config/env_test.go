@@ -261,7 +261,7 @@ func TestMergeConfig(t *testing.T) {
 			},
 		},
 		{
-			name:      "Env takes precedence over default",
+			name: "Env takes precedence over default",
 			cliConfig: &Config{
 				MaxRetries: -1,
 				StartFrom:  -1,

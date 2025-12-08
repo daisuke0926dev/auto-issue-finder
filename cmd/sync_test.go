@@ -240,10 +240,10 @@ func removeFile(path string) {
 
 func TestRecursiveExecution(t *testing.T) {
 	tests := []struct {
-		name           string
-		currentDepth   int
-		wantSkip       bool
-		wantNewDepth   int
+		name         string
+		currentDepth int
+		wantSkip     bool
+		wantNewDepth int
 	}{
 		{
 			name:         "First level recursion - should execute",
@@ -362,9 +362,9 @@ func TestRecursionDepthLimit(t *testing.T) {
 
 	// Test edge cases around the limit
 	tests := []struct {
-		name         string
-		depth        int
-		wantAllowed  bool
+		name        string
+		depth       int
+		wantAllowed bool
 	}{
 		{
 			name:        "Depth 0 - allowed",
@@ -458,15 +458,14 @@ func TestSleepshipCommandDetection(t *testing.T) {
 // Helper function to detect sleepship commands
 func containsSleepship(command string) bool {
 	return os.Getenv("TESTING") != "" ||
-		   (len(command) > 0 && (
-			   containsSubstring(command, "sleepship") ||
-			   containsSubstring(command, "./bin/sleepship")))
+		(len(command) > 0 && (containsSubstring(command, "sleepship") ||
+			containsSubstring(command, "./bin/sleepship")))
 }
 
 // Helper function for substring check
 func containsSubstring(s, substr string) bool {
 	return len(s) >= len(substr) &&
-		   (s == substr || findSubstring(s, substr))
+		(s == substr || findSubstring(s, substr))
 }
 
 // Simple substring finder
