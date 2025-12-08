@@ -526,7 +526,7 @@ func runCommand(command string, logFile *os.File) error {
 	_, _ = logFile.Write(output)
 
 	if err != nil {
-		return fmt.Errorf("%s\nOutput: %s", err, string(output))
+		return fmt.Errorf("%w\nOutput: %s", err, string(output))
 	}
 
 	fmt.Printf("Output: %s\n", string(output))
@@ -602,7 +602,7 @@ func createBranchForSync(taskFile string, logFile *os.File) error {
 	_, _ = logFile.Write(output)
 
 	if err != nil {
-		return fmt.Errorf("failed to create branch: %s\nOutput: %s", err, string(output))
+		return fmt.Errorf("failed to create branch: %w\nOutput: %s", err, string(output))
 	}
 
 	fmt.Printf("✅ Branch created: %s\n\n", branchName)
@@ -623,7 +623,7 @@ func commitTaskChanges(task Task, taskNumber int, logFile *os.File) error {
 	_, _ = logFile.Write(addOutput)
 
 	if err != nil {
-		return fmt.Errorf("failed to add changes: %s\nOutput: %s", err, string(addOutput))
+		return fmt.Errorf("failed to add changes: %w\nOutput: %s", err, string(addOutput))
 	}
 
 	// Commit changes
@@ -638,7 +638,7 @@ func commitTaskChanges(task Task, taskNumber int, logFile *os.File) error {
 			fmt.Printf("ℹ️ No changes to commit\n")
 			return nil
 		}
-		return fmt.Errorf("failed to commit: %s\nOutput: %s", err, string(commitOutput))
+		return fmt.Errorf("failed to commit: %w\nOutput: %s", err, string(commitOutput))
 	}
 
 	fmt.Printf("✅ Changes committed\n")
