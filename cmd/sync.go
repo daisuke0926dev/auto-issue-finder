@@ -171,6 +171,9 @@ func runSync(cmd *cobra.Command, args []string) error {
 	fmt.Printf("========================================\n")
 	fmt.Printf("📝 Log file: %s\n", logFilePath)
 
+	// Generate and display PR information
+	generatePRInfo(tasks, taskFile)
+
 	return nil
 }
 
@@ -386,6 +389,82 @@ func commitTaskChanges(task Task, taskNumber int, logFile *os.File) error {
 
 	fmt.Printf("✅ Changes committed\n")
 	return nil
+}
+
+func generatePRInfo(tasks []Task, taskFile string) {
+	// Extract feature name from task file
+	filename := filepath.Base(taskFile)
+	featureName := sanitizeBranchName(filename)
+
+	// Generate PR title
+	prTitle := generatePRTitle(tasks, featureName)
+
+	// Generate PR body
+	prBody := generatePRBody(tasks)
+
+	// Display PR information
+	fmt.Printf("\n========================================\n")
+	fmt.Printf("📋 プルリクエスト情報\n")
+	fmt.Printf("========================================\n\n")
+
+	fmt.Printf("📌 タイトル:\n%s\n\n", prTitle)
+	fmt.Printf("📝 本文:\n%s\n", prBody)
+	fmt.Printf("========================================\n")
+}
+
+func generatePRTitle(tasks []Task, featureName string) string {
+	// Use first task title as base, or use feature name
+	if len(tasks) > 0 {
+		firstTaskTitle := tasks[0].Title
+		// Remove task number prefix
+		re := regexp.MustCompile(`^(\d+|タスク\d+|Task\d+):\s*`)
+		firstTaskTitle = re.ReplaceAllString(firstTaskTitle, "")
+
+		// If it's a comprehensive feature, use it as title
+		if len(tasks) > 5 {
+			return fmt.Sprintf("%sの実装", firstTaskTitle)
+		}
+		return firstTaskTitle
+	}
+
+	// Fallback: use feature name
+	return fmt.Sprintf("%sの実装", featureName)
+}
+
+func generatePRBody(tasks []Task) string {
+	var body strings.Builder
+
+	body.WriteString("## 概要\n\n")
+	body.WriteString(fmt.Sprintf("このPRでは、以下の%d個のタスクを実装しました。\n\n", len(tasks)))
+
+	body.WriteString("## 実装内容\n\n")
+	for i, task := range tasks {
+		// Remove task number prefix from title
+		re := regexp.MustCompile(`^(\d+|タスク\d+|Task\d+):\s*`)
+		taskTitle := re.ReplaceAllString(task.Title, "")
+
+		body.WriteString(fmt.Sprintf("%d. %s\n", i+1, taskTitle))
+	}
+
+	body.WriteString("\n## テスト\n\n")
+	body.WriteString("各タスク完了時に以下の確認を実施済み:\n\n")
+
+	// Collect unique verification commands
+	verificationCmds := make(map[string]bool)
+	for _, task := range tasks {
+		if task.Command != "" {
+			verificationCmds[task.Command] = true
+		}
+	}
+
+	for cmd := range verificationCmds {
+		body.WriteString(fmt.Sprintf("- `%s`\n", cmd))
+	}
+
+	body.WriteString("\n## 備考\n\n")
+	body.WriteString("このPRは自律開発ツール（auto-issue-finder）により自動生成されました。\n")
+
+	return body.String()
 }
 
 func spawnBackgroundWorker(taskFile string) error {
