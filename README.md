@@ -474,6 +474,22 @@ sleepship/
 
 ---
 
+## 開発
+
+### Lint
+
+コードの品質チェック:
+```bash
+make lint
+```
+
+自動修正:
+```bash
+make lint-fix
+```
+
+---
+
 ## ライセンス
 
 MIT License - 詳細は [LICENSE](LICENSE) をご覧ください。
