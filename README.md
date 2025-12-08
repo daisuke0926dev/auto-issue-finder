@@ -4,13 +4,14 @@
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 [![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](CONTRIBUTING.md)
 
-> 🤖 Claude Codeによる自律開発システム + 📊 GitHub Issue分析ツール
+> 🤖 Claude Codeによる自律開発システム
 
-このリポジトリには3つの強力なツールが含まれています:
+タスクファイルを作成するだけで、Claude Codeが自律的に開発を進めるツールです。
 
-1. **同期処理型自律開発ツール (sync)** - タスクを順次実行し、エラーを自動修正する次世代ツール
+このリポジトリには2つの自律開発ツールが含まれています:
+
+1. **同期処理型自律開発ツール (sync)** - タスクを順次実行し、エラーを自動修正する次世代ツール（推奨）
 2. **Claude Code自律開発システム (bash版)** - 寝ている間にClaude Codeが自律的に開発を進める従来のシステム
-3. **GitHub Issue Analyzer** - リポジトリのIssueを自動分析し、パターン検出と推奨事項を提供
 
 ---
 
@@ -58,17 +59,6 @@ vim tonight.txt
 ./run-overnight.sh tonight.txt
 ```
 
-### GitHub Issue Analyzer
-
-```bash
-# ビルド
-go build -o bin/auto-issue-finder
-
-# 実行
-export GITHUB_TOKEN=your_token_here
-./bin/auto-issue-finder analyze microsoft/vscode --format=console
-```
-
 ---
 
 ## ✨ 主要機能
@@ -90,19 +80,11 @@ export GITHUB_TOKEN=your_token_here
 - 🎯 **柔軟な実行モード** - 対話的/バックグラウンド/インクリメンタル
 - 🔧 **自動承認設定** - 全ツールの使用を自動承認して中断なし
 
-### GitHub Issue Analyzer
-
-- 📊 **包括的な分析** - 統計、ラベル分布、月次トレンド
-- 🔍 **パターン検出** - 長期未解決Issue、高活動Issue、重複疑い
-- 📈 **複数の出力形式** - Console/Markdown/JSON
-- 💡 **実用的な推奨** - 分析結果に基づく具体的なアクション提案
-- ⚡ **高速処理** - ページネーション対応、効率的なAPI利用
-
 ---
 
 ## 📦 インストール
 
-### 同期処理型自律開発ツール (sync) & GitHub Issue Analyzer
+### 同期処理型自律開発ツール (sync)
 
 ```bash
 git clone https://github.com/isiidaisuke0926/auto-issue-finder.git
@@ -113,10 +95,6 @@ go build -o bin/auto-issue-finder
 # 使用可能なコマンド確認
 ./bin/auto-issue-finder --help
 ```
-
-ビルドされるコマンド:
-- `sync` - 同期処理型自律開発
-- `analyze` - GitHub Issue分析
 
 ### Claude Code自律開発システム (bash版)
 
@@ -268,34 +246,6 @@ tail -f nohup.out  # ログ監視
 - 統合テスト
 ```
 
-### GitHub Issue Analyzer
-
-**コンソール出力:**
-
-```bash
-./auto-issue-finder analyze golang/go --format=console --limit=100
-```
-
-**マークダウンレポート生成:**
-
-```bash
-./auto-issue-finder analyze microsoft/vscode \
-  --state=open \
-  --format=markdown \
-  --output=report.md
-```
-
-**JSON出力（自動化向け）:**
-
-```bash
-./auto-issue-finder analyze owner/repo \
-  --format=json \
-  --output=analysis.json
-
-# jqで処理
-cat analysis.json | jq '.Stats.TotalIssues'
-```
-
 ---
 
 ## 📚 ドキュメント
@@ -313,45 +263,12 @@ cat analysis.json | jq '.Stats.TotalIssues'
 ### 動作確認
 
 ```bash
-# デモスクリプト実行（推奨）
-./demo.sh
+# syncコマンドのビルド
+go build -o bin/auto-issue-finder
 
-# 全テストとカバレッジ確認
-./run-tests.sh --coverage
-
-# HTMLカバレッジレポート生成
-./run-tests.sh --html
-
-# 統合テストも含めて実行
-./run-tests.sh --integration
+# テストタスクで動作確認
+./bin/auto-issue-finder sync test-sync-task.txt
 ```
-
-### テスト実行
-
-```bash
-# 全テスト実行
-go test ./...
-
-# ユニットテストのみ
-go test ./internal/...
-
-# 統合テスト
-go test ./test/...
-
-# カバレッジ付き
-go test ./... -cover
-
-# カバレッジレポート
-go test ./internal/analyzer -coverprofile=coverage.out
-go tool cover -html=coverage.out
-```
-
-### テストカバレッジ
-
-- `internal/analyzer`: 96.9%
-- `internal/reporter`: 96.5%
-- `internal/github`: 9.1% (モックなしAPI呼び出しのため低い)
-- **全体**: 83.0%
 
 ### プロジェクト構造
 
@@ -359,16 +276,13 @@ go tool cover -html=coverage.out
 auto-issue-finder/
 ├── cmd/
 │   ├── sync.go               # 同期処理型自律開発コマンド
-│   ├── analyze.go            # GitHub Issue分析コマンド
 │   └── root.go               # CLI ルート
-├── internal/
-│   ├── github/               # GitHub API クライアント
-│   ├── analyzer/             # Issue 分析ロジック (96.9% coverage)
-│   └── reporter/             # レポート生成 (96.5% coverage)
 ├── bin/                      # ビルド成果物
 │   └── auto-issue-finder     # 実行ファイル
+├── main.go                   # エントリーポイント
 ├── auto-dev.sh               # 自律開発スクリプト (bash版)
 ├── auto-dev-incremental.sh   # インクリメンタルコミット版
+├── auto-dev-with-commits.sh  # コミット付き版
 ├── run-overnight.sh          # バックグラウンド実行
 └── install-auto-dev.sh       # インストーラー
 ```
@@ -397,10 +311,7 @@ MIT License - 詳細は [LICENSE](LICENSE) をご覧ください。
 ## 🙏 謝辞
 
 使用しているライブラリ:
-- [go-github](https://github.com/google/go-github) - GitHub API client
 - [cobra](https://github.com/spf13/cobra) - CLI framework
-- [godotenv](https://github.com/joho/godotenv) - Environment variables
-- [testify](https://github.com/stretchr/testify) - Testing toolkit
 
 ---
 

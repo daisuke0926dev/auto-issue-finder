@@ -9,9 +9,10 @@ import (
 
 var rootCmd = &cobra.Command{
 	Use:   "auto-issue-finder",
-	Short: "Analyze GitHub issues and discover patterns",
-	Long: `auto-issue-finder is a CLI tool that automatically analyzes GitHub repository issues,
-identifies patterns, and provides actionable recommendations for improvement.`,
+	Short: "Autonomous development system with Claude Code",
+	Long: `auto-issue-finder is a CLI tool for autonomous software development.
+It executes development tasks synchronously using Claude Code, with automatic
+error detection and correction.`,
 }
 
 // Execute runs the root command
