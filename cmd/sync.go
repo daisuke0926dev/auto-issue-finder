@@ -243,9 +243,26 @@ func runSync(cmd *cobra.Command, args []string) error {
 				lastErr = err
 				taskRetryCount++
 
+				// Detailed error logging
+				errorMsg := fmt.Sprintf("Task failed (task %d/%d, attempt %d/%d): %v", taskNum, len(tasks), taskRetryCount, maxRetries+1, err)
+				_, _ = fmt.Fprintf(f, "\n❌ %s\n", errorMsg)
+
 				if taskRetryCount > maxRetries {
-					log.Printf("❌ タスク %d が %d 回の試行後も失敗しました: %v\n", taskNum, maxRetries+1, err)
-					log.Printf("実行を停止します。\n")
+					// Final failure - no more retries available
+					failureMsg := fmt.Sprintf("❌ Task failed: タスク %d (\"%s\") が %d 回の試行後も失敗しました\n", taskNum, task.Title, maxRetries+1)
+					fmt.Print(failureMsg)
+					_, _ = f.WriteString(failureMsg)
+
+					detailedError := fmt.Sprintf("【失敗の詳細】\n")
+					detailedError += fmt.Sprintf("  タスク番号: %d/%d\n", taskNum, len(tasks))
+					detailedError += fmt.Sprintf("  タスク名: %s\n", task.Title)
+					detailedError += fmt.Sprintf("  試行回数: %d回\n", maxRetries+1)
+					detailedError += fmt.Sprintf("  エラー内容: %v\n", err)
+					detailedError += fmt.Sprintf("\n実行を停止します。リトライ不可。\n")
+					fmt.Print(detailedError)
+					_, _ = f.WriteString(detailedError)
+
+					log.Printf("❌ Task failed: リトライ上限に達しました (task %d, max retries: %d)\n", taskNum, maxRetries)
 
 					// Record failed execution to history
 					duration := time.Since(startTime)
@@ -257,8 +274,21 @@ func runSync(cmd *cobra.Command, args []string) error {
 					return fmt.Errorf("task %d failed after %d attempts: %w", taskNum, maxRetries+1, err)
 				}
 
-				log.Printf("❌ タスク %d の実行に失敗しました。リトライ %d/%d 回目を実行します\n", taskNum, taskRetryCount, maxRetries)
-				log.Printf("エラー内容: %v\n", err)
+				// Retry is possible
+				retryMsg := fmt.Sprintf("❌ タスク %d の実行に失敗しました。リトライ可能: %d/%d 回目を実行します\n", taskNum, taskRetryCount, maxRetries)
+				fmt.Print(retryMsg)
+				_, _ = f.WriteString(retryMsg)
+
+				retryDetail := fmt.Sprintf("【リトライ詳細】\n")
+				retryDetail += fmt.Sprintf("  タスク番号: %d/%d\n", taskNum, len(tasks))
+				retryDetail += fmt.Sprintf("  タスク名: %s\n", task.Title)
+				retryDetail += fmt.Sprintf("  現在の試行: %d回目\n", taskRetryCount)
+				retryDetail += fmt.Sprintf("  残りリトライ: %d回\n", maxRetries-taskRetryCount+1)
+				retryDetail += fmt.Sprintf("  エラー内容: %v\n", err)
+				fmt.Print(retryDetail)
+				_, _ = f.WriteString(retryDetail)
+
+				log.Printf("🔄 Task retry: リトライを開始します (task %d, attempt %d/%d)\n", taskNum, taskRetryCount, maxRetries)
 
 				// Retry with error context
 				retryPrompt := fmt.Sprintf(`前回のタスク実行でエラーが発生しました (リトライ %d/%d):
@@ -327,9 +357,27 @@ func runSync(cmd *cobra.Command, args []string) error {
 				if err := runCommand(task.Command, f); err != nil {
 					retryCount++
 
+					// Detailed verification error logging
+					verifyErrorMsg := fmt.Sprintf("Task failed (verification): task %d/%d, command: %s, attempt %d/%d", taskNum, len(tasks), task.Command, retryCount, maxRetries+1)
+					_, _ = fmt.Fprintf(f, "\n❌ %s\n", verifyErrorMsg)
+
 					if retryCount > maxRetries {
-						log.Printf("❌ 検証が %d 回の試行後も失敗しました: %v\n", maxRetries+1, err)
-						log.Printf("実行を停止します。\n")
+						// Final verification failure - no more retries
+						verifyFailMsg := fmt.Sprintf("❌ Task failed (verification): タスク %d (\"%s\") の検証が %d 回の試行後も失敗しました\n", taskNum, task.Title, maxRetries+1)
+						fmt.Print(verifyFailMsg)
+						_, _ = f.WriteString(verifyFailMsg)
+
+						detailedVerifyError := fmt.Sprintf("【検証失敗の詳細】\n")
+						detailedVerifyError += fmt.Sprintf("  タスク番号: %d/%d\n", taskNum, len(tasks))
+						detailedVerifyError += fmt.Sprintf("  タスク名: %s\n", task.Title)
+						detailedVerifyError += fmt.Sprintf("  検証コマンド: %s\n", task.Command)
+						detailedVerifyError += fmt.Sprintf("  試行回数: %d回\n", maxRetries+1)
+						detailedVerifyError += fmt.Sprintf("  エラー内容: %v\n", err)
+						detailedVerifyError += fmt.Sprintf("\n実行を停止します。リトライ不可。\n")
+						fmt.Print(detailedVerifyError)
+						_, _ = f.WriteString(detailedVerifyError)
+
+						log.Printf("❌ Task failed (verification): リトライ上限に達しました (task %d, max retries: %d)\n", taskNum, maxRetries)
 
 						// Record failed execution to history
 						duration := time.Since(startTime)
@@ -341,7 +389,22 @@ func runSync(cmd *cobra.Command, args []string) error {
 						return fmt.Errorf("verification failed after %d attempts: %w", maxRetries+1, err)
 					}
 
-					log.Printf("❌ 検証失敗、修正を試みます（リトライ %d/%d 回目）: %v\n", retryCount, maxRetries, err)
+					// Verification retry is possible
+					verifyRetryMsg := fmt.Sprintf("❌ 検証失敗、修正を試みます（リトライ可能: %d/%d 回目）\n", retryCount, maxRetries)
+					fmt.Print(verifyRetryMsg)
+					_, _ = f.WriteString(verifyRetryMsg)
+
+					verifyRetryDetail := fmt.Sprintf("【検証リトライ詳細】\n")
+					verifyRetryDetail += fmt.Sprintf("  タスク番号: %d/%d\n", taskNum, len(tasks))
+					verifyRetryDetail += fmt.Sprintf("  タスク名: %s\n", task.Title)
+					verifyRetryDetail += fmt.Sprintf("  検証コマンド: %s\n", task.Command)
+					verifyRetryDetail += fmt.Sprintf("  現在の試行: %d回目\n", retryCount)
+					verifyRetryDetail += fmt.Sprintf("  残りリトライ: %d回\n", maxRetries-retryCount+1)
+					verifyRetryDetail += fmt.Sprintf("  エラー内容: %v\n", err)
+					fmt.Print(verifyRetryDetail)
+					_, _ = f.WriteString(verifyRetryDetail)
+
+					log.Printf("🔄 Task retry (verification): リトライを開始します (task %d, attempt %d/%d)\n", taskNum, retryCount, maxRetries)
 
 					// Attempt to fix
 					fixPrompt := fmt.Sprintf(`検証コマンドが失敗しました（リトライ %d/%d 回目）:
