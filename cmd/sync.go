@@ -278,7 +278,20 @@ func runSync(cmd *cobra.Command, args []string) error {
 
 プロジェクトディレクトリ: %s
 
-実装を開始してください。`, taskRetryCount, maxRetries, err, task.Title, task.Description, projectDir)
+実装を開始してください。
+
+実装後、以下の質問に必ず答えてください：
+
+【成功判定】
+このタスクは完全に成功しましたか？以下を確認してください：
+1. 必要なファイルが作成されているか
+2. 確認コマンドが成功しているか
+3. エラーが発生していないか
+
+成功の場合: "SUCCESS: このタスクは成功しました"
+失敗の場合: "FAILED: このタスクは失敗しました。理由: [具体的な理由]"
+
+という形式で必ず応答してください。`, taskRetryCount, maxRetries, err, task.Title, task.Description, projectDir)
 
 				if err := executeClaude(retryPrompt, f); err != nil {
 					log.Printf("❌ リトライ実行に失敗しました: %v\n", err)
@@ -469,7 +482,20 @@ func executeTask(task Task, logFile *os.File) error {
 
 プロジェクトディレクトリ: %s
 
-実装を開始してください。`, task.Title, task.Description, projectDir)
+実装を開始してください。
+
+実装後、以下の質問に必ず答えてください：
+
+【成功判定】
+このタスクは完全に成功しましたか？以下を確認してください：
+1. 必要なファイルが作成されているか
+2. 確認コマンドが成功しているか
+3. エラーが発生していないか
+
+成功の場合: "SUCCESS: このタスクは成功しました"
+失敗の場合: "FAILED: このタスクは失敗しました。理由: [具体的な理由]"
+
+という形式で必ず応答してください。`, task.Title, task.Description, projectDir)
 
 	if err := executeClaude(prompt, logFile); err != nil {
 		return err
