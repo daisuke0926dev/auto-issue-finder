@@ -471,7 +471,28 @@ func executeTask(task Task, logFile *os.File) error {
 
 実装を開始してください。`, task.Title, task.Description, projectDir)
 
-	return executeClaude(prompt, logFile)
+	if err := executeClaude(prompt, logFile); err != nil {
+		return err
+	}
+
+	// 確認コマンドを実行
+	if verifyCmd := task.Command; verifyCmd != "" {
+		fmt.Printf("\n🔍 Running verification in executeTask: %s\n", verifyCmd)
+		_, _ = fmt.Fprintf(logFile, "\n=== Verification Command: %s ===\n", verifyCmd)
+
+		cmd := exec.Command("bash", "-c", verifyCmd)
+		cmd.Dir = projectDir
+		output, err := cmd.CombinedOutput()
+		_, _ = logFile.Write(output)
+
+		if err != nil {
+			return fmt.Errorf("verification failed: %s\nOutput: %s", err, string(output))
+		}
+		log.Printf("✅ Verification passed: %s", verifyCmd)
+		_, _ = fmt.Fprintf(logFile, "✅ Verification passed\n")
+	}
+
+	return nil
 }
 
 func executeClaude(prompt string, logFile *os.File) error {
