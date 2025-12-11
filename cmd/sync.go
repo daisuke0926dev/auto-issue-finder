@@ -32,9 +32,10 @@ var (
 
 // Task represents a development task with title, description, and verification command.
 type Task struct {
-	Title       string
-	Description string
-	Command     string // 確認コマンド（go build, go test等）
+	Title        string
+	Description  string
+	Command      string // 確認コマンド（go build, go test等）
+	Dependencies []int  // 依存するタスク番号のリスト
 }
 
 var syncCmd = &cobra.Command{
@@ -158,6 +159,11 @@ func runSync(cmd *cobra.Command, args []string) error {
 
 	if len(tasks) == 0 {
 		return fmt.Errorf("no tasks found in task file")
+	}
+
+	// Validate task dependencies
+	if err := validateDependencies(tasks); err != nil {
+		return fmt.Errorf("invalid task dependencies: %w", err)
 	}
 
 	// Validate startFrom value
@@ -484,6 +490,7 @@ func parseTaskFile(filename string) ([]Task, error) {
 	var tasks []Task
 	var currentTask *Task
 	var descLines []string
+	var inDependencySection bool
 
 	scanner := bufio.NewScanner(file)
 	for scanner.Scan() {
@@ -499,14 +506,35 @@ func parseTaskFile(filename string) ([]Task, error) {
 
 			// Start new task
 			currentTask = &Task{
-				Title: strings.TrimPrefix(strings.TrimPrefix(line, "## タスク"), "## Task"),
+				Title:        strings.TrimPrefix(strings.TrimPrefix(line, "## タスク"), "## Task"),
+				Dependencies: []int{},
 			}
 			descLines = []string{}
+			inDependencySection = false
+			continue
+		}
+
+		// Dependency section header
+		if currentTask != nil && (strings.HasPrefix(line, "### 依存") || strings.HasPrefix(line, "### Dependencies")) {
+			inDependencySection = true
+			continue
+		}
+
+		// Exit dependency section on next section header
+		if currentTask != nil && strings.HasPrefix(line, "###") && !strings.HasPrefix(line, "### 依存") && !strings.HasPrefix(line, "### Dependencies") {
+			inDependencySection = false
+		}
+
+		// Parse dependency lines (e.g., "- 1, 2, 3" or "- 1")
+		if currentTask != nil && inDependencySection && strings.HasPrefix(line, "- ") {
+			depStr := strings.TrimPrefix(line, "- ")
+			deps := parseDependencies(depStr)
+			currentTask.Dependencies = append(currentTask.Dependencies, deps...)
 			continue
 		}
 
 		// Verification command (line starting with "- `")
-		if currentTask != nil && strings.HasPrefix(line, "- `") && strings.HasSuffix(line, "`") {
+		if currentTask != nil && !inDependencySection && strings.HasPrefix(line, "- `") && strings.HasSuffix(line, "`") {
 			// Extract command from "- `command`" format
 			cmd := strings.TrimPrefix(line, "- `")
 			cmd = strings.TrimSuffix(cmd, "`")
@@ -515,7 +543,7 @@ func parseTaskFile(filename string) ([]Task, error) {
 		}
 
 		// Accumulate description lines
-		if currentTask != nil && line != "" && !strings.HasPrefix(line, "---") {
+		if currentTask != nil && !inDependencySection && line != "" && !strings.HasPrefix(line, "---") {
 			descLines = append(descLines, line)
 		}
 	}
@@ -527,6 +555,63 @@ func parseTaskFile(filename string) ([]Task, error) {
 	}
 
 	return tasks, scanner.Err()
+}
+
+// parseDependencies parses a comma-separated list of task numbers
+// Example: "1, 2, 3" -> [1, 2, 3]
+func parseDependencies(depStr string) []int {
+	var deps []int
+	parts := strings.Split(depStr, ",")
+	for _, part := range parts {
+		part = strings.TrimSpace(part)
+		if num, err := strconv.Atoi(part); err == nil {
+			deps = append(deps, num)
+		}
+	}
+	return deps
+}
+
+// validateDependencies validates that all task dependencies are valid
+func validateDependencies(tasks []Task) error {
+	// Create a map of valid task numbers
+	validTasks := make(map[int]bool)
+	for i := range tasks {
+		validTasks[i+1] = true
+	}
+
+	// Check each task's dependencies
+	for i, task := range tasks {
+		taskNum := i + 1
+		for _, dep := range task.Dependencies {
+			// Check if dependency exists
+			if !validTasks[dep] {
+				return fmt.Errorf("task %d references non-existent task %d", taskNum, dep)
+			}
+			// Check for self-dependency
+			if dep == taskNum {
+				return fmt.Errorf("task %d cannot depend on itself", taskNum)
+			}
+			// Check for forward dependency (task cannot depend on later tasks)
+			if dep >= taskNum {
+				return fmt.Errorf("task %d cannot depend on later task %d (dependencies must be on earlier tasks)", taskNum, dep)
+			}
+		}
+	}
+
+	// Check for circular dependencies (if any exist)
+	if err := checkCircularDependencies(tasks); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+// checkCircularDependencies checks for circular dependencies in tasks
+func checkCircularDependencies(tasks []Task) error {
+	// Since we only allow dependencies on earlier tasks (checked above),
+	// circular dependencies are impossible in this design.
+	// This function is kept for completeness and future extensibility.
+	return nil
 }
 
 func executeTask(task Task, logFile *os.File) error {
