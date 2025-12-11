@@ -1,11 +1,10 @@
-version: 2
-
 run:
   timeout: 5m
 
 linters:
   enable:
     - misspell
+    - gosec
     - revive
     - errorlint
     - govet
