@@ -50,15 +50,12 @@ build/
 *.tmp
 *.backup
 
-# Task files (exclude from root and anywhere except tests/)
+# Task files
 tasks.txt
-/tasks-*.txt
-/task-*.txt
-/test-*.txt
+tasks-*.txt
+task-*.txt
+test-*.txt
 tonight.txt
-
-# But include test fixtures
-!tests/fixtures/tasks-*.txt
 
 # Temporary directories
 tmp/
