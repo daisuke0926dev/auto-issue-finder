@@ -274,12 +274,12 @@ func runSync(cmd *cobra.Command, args []string) error {
 					fmt.Print(failureMsg)
 					_, _ = f.WriteString(failureMsg)
 
-					detailedError := fmt.Sprintf("【失敗の詳細】\n")
+					detailedError := "【失敗の詳細】\n"
 					detailedError += fmt.Sprintf("  タスク番号: %d/%d\n", taskNum, len(tasks))
 					detailedError += fmt.Sprintf("  タスク名: %s\n", task.Title)
 					detailedError += fmt.Sprintf("  試行回数: %d回\n", maxRetries+1)
 					detailedError += fmt.Sprintf("  エラー内容: %v\n", err)
-					detailedError += fmt.Sprintf("\n実行を停止します。リトライ不可。\n")
+					detailedError += "\n実行を停止します。リトライ不可。\n"
 					fmt.Print(detailedError)
 					_, _ = f.WriteString(detailedError)
 
@@ -300,7 +300,7 @@ func runSync(cmd *cobra.Command, args []string) error {
 				fmt.Print(retryMsg)
 				_, _ = f.WriteString(retryMsg)
 
-				retryDetail := fmt.Sprintf("【リトライ詳細】\n")
+				retryDetail := "【リトライ詳細】\n"
 				retryDetail += fmt.Sprintf("  タスク番号: %d/%d\n", taskNum, len(tasks))
 				retryDetail += fmt.Sprintf("  タスク名: %s\n", task.Title)
 				retryDetail += fmt.Sprintf("  現在の試行: %d回目\n", taskRetryCount)
@@ -388,13 +388,13 @@ func runSync(cmd *cobra.Command, args []string) error {
 						fmt.Print(verifyFailMsg)
 						_, _ = f.WriteString(verifyFailMsg)
 
-						detailedVerifyError := fmt.Sprintf("【検証失敗の詳細】\n")
+						detailedVerifyError := "【検証失敗の詳細】\n"
 						detailedVerifyError += fmt.Sprintf("  タスク番号: %d/%d\n", taskNum, len(tasks))
 						detailedVerifyError += fmt.Sprintf("  タスク名: %s\n", task.Title)
 						detailedVerifyError += fmt.Sprintf("  検証コマンド: %s\n", task.Command)
 						detailedVerifyError += fmt.Sprintf("  試行回数: %d回\n", maxRetries+1)
 						detailedVerifyError += fmt.Sprintf("  エラー内容: %v\n", err)
-						detailedVerifyError += fmt.Sprintf("\n実行を停止します。リトライ不可。\n")
+						detailedVerifyError += "\n実行を停止します。リトライ不可。\n"
 						fmt.Print(detailedVerifyError)
 						_, _ = f.WriteString(detailedVerifyError)
 
@@ -415,7 +415,7 @@ func runSync(cmd *cobra.Command, args []string) error {
 					fmt.Print(verifyRetryMsg)
 					_, _ = f.WriteString(verifyRetryMsg)
 
-					verifyRetryDetail := fmt.Sprintf("【検証リトライ詳細】\n")
+					verifyRetryDetail := "【検証リトライ詳細】\n"
 					verifyRetryDetail += fmt.Sprintf("  タスク番号: %d/%d\n", taskNum, len(tasks))
 					verifyRetryDetail += fmt.Sprintf("  タスク名: %s\n", task.Title)
 					verifyRetryDetail += fmt.Sprintf("  検証コマンド: %s\n", task.Command)
