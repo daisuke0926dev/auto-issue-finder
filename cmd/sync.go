@@ -541,7 +541,7 @@ func executeTask(t task.Task, logFile *os.File) error {
 		_, _ = logFile.Write(output)
 
 		if err != nil {
-			return fmt.Errorf("verification failed: %s\nOutput: %s", err, string(output))
+			return fmt.Errorf("verification failed: %w\nOutput: %s", err, string(output))
 		}
 		log.Printf("✅ Verification passed: %s", verifyCmd)
 		_, _ = fmt.Fprintf(logFile, "✅ Verification passed\n")
