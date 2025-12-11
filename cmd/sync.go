@@ -2,7 +2,6 @@
 package cmd
 
 import (
-	"bufio"
 	"fmt"
 	"log"
 	"os"
@@ -15,6 +14,7 @@ import (
 
 	"github.com/isiidaisuke0926/sleepship/internal/config"
 	"github.com/isiidaisuke0926/sleepship/internal/history"
+	"github.com/isiidaisuke0926/sleepship/task"
 	"github.com/spf13/cobra"
 )
 
@@ -29,13 +29,6 @@ var (
 	startFrom  int  // Start from specified task number
 	maxRetries int  // Maximum number of retries for failed verifications (default: 3)
 )
-
-// Task represents a development task with title, description, and verification command.
-type Task struct {
-	Title       string
-	Description string
-	Command     string // 確認コマンド（go build, go test等）
-}
 
 var syncCmd = &cobra.Command{
 	Use:   "sync [task-file]",
@@ -151,13 +144,18 @@ func runSync(cmd *cobra.Command, args []string) error {
 	projectDir = absProjectDir
 
 	// Parse task file
-	tasks, err := parseTaskFile(taskFile)
+	tasks, err := task.ParseTaskFile(taskFile)
 	if err != nil {
 		return fmt.Errorf("failed to parse task file: %w", err)
 	}
 
 	if len(tasks) == 0 {
 		return fmt.Errorf("no tasks found in task file")
+	}
+
+	// Validate task dependencies
+	if err := task.ValidateDependencies(tasks); err != nil {
+		return fmt.Errorf("invalid task dependencies: %w", err)
 	}
 
 	// Validate startFrom value
@@ -234,6 +232,29 @@ func runSync(cmd *cobra.Command, args []string) error {
 		fmt.Print(taskHeader)
 		_, _ = f.WriteString(taskHeader)
 
+		// Execute prerequisite check before task execution
+		if task.Prerequisites != "" {
+			fmt.Printf("\n🔍 Running prerequisite check: %s\n", task.Prerequisites)
+			_, _ = fmt.Fprintf(f, "\n=== Prerequisite Check: %s ===\n", task.Prerequisites)
+
+			if err := runCommand(task.Prerequisites, f); err != nil {
+				prereqFailMsg := fmt.Sprintf("❌ Prerequisite check failed for task %d: %v\n", taskNum, err)
+				fmt.Print(prereqFailMsg)
+				_, _ = f.WriteString(prereqFailMsg)
+
+				// Record failed execution to history
+				duration := time.Since(startTime)
+				histErr := history.Record(projectDir, taskFile, branchName, false, duration, len(tasks), startFrom, maxRetries, fmt.Sprintf("Prerequisite check failed for task %d: %v", taskNum, err))
+				if histErr != nil {
+					log.Printf("⚠️ Warning: Failed to record history: %v\n", histErr)
+				}
+
+				return fmt.Errorf("prerequisite check failed for task %d: %w", taskNum, err)
+			}
+
+			fmt.Printf("✅ Prerequisite check passed\n")
+		}
+
 		// Execute task with Claude with retry logic
 		var lastErr error
 		taskRetryCount := 0
@@ -243,9 +264,26 @@ func runSync(cmd *cobra.Command, args []string) error {
 				lastErr = err
 				taskRetryCount++
 
+				// Detailed error logging
+				errorMsg := fmt.Sprintf("Task failed (task %d/%d, attempt %d/%d): %v", taskNum, len(tasks), taskRetryCount, maxRetries+1, err)
+				_, _ = fmt.Fprintf(f, "\n❌ %s\n", errorMsg)
+
 				if taskRetryCount > maxRetries {
-					log.Printf("❌ タスク %d が %d 回の試行後も失敗しました: %v\n", taskNum, maxRetries+1, err)
-					log.Printf("実行を停止します。\n")
+					// Final failure - no more retries available
+					failureMsg := fmt.Sprintf("❌ Task failed: タスク %d (\"%s\") が %d 回の試行後も失敗しました\n", taskNum, task.Title, maxRetries+1)
+					fmt.Print(failureMsg)
+					_, _ = f.WriteString(failureMsg)
+
+					detailedError := "【失敗の詳細】\n"
+					detailedError += fmt.Sprintf("  タスク番号: %d/%d\n", taskNum, len(tasks))
+					detailedError += fmt.Sprintf("  タスク名: %s\n", task.Title)
+					detailedError += fmt.Sprintf("  試行回数: %d回\n", maxRetries+1)
+					detailedError += fmt.Sprintf("  エラー内容: %v\n", err)
+					detailedError += "\n実行を停止します。リトライ不可。\n"
+					fmt.Print(detailedError)
+					_, _ = f.WriteString(detailedError)
+
+					log.Printf("❌ Task failed: リトライ上限に達しました (task %d, max retries: %d)\n", taskNum, maxRetries)
 
 					// Record failed execution to history
 					duration := time.Since(startTime)
@@ -257,8 +295,21 @@ func runSync(cmd *cobra.Command, args []string) error {
 					return fmt.Errorf("task %d failed after %d attempts: %w", taskNum, maxRetries+1, err)
 				}
 
-				log.Printf("❌ タスク %d の実行に失敗しました。リトライ %d/%d 回目を実行します\n", taskNum, taskRetryCount, maxRetries)
-				log.Printf("エラー内容: %v\n", err)
+				// Retry is possible
+				retryMsg := fmt.Sprintf("❌ タスク %d の実行に失敗しました。リトライ可能: %d/%d 回目を実行します\n", taskNum, taskRetryCount, maxRetries)
+				fmt.Print(retryMsg)
+				_, _ = f.WriteString(retryMsg)
+
+				retryDetail := "【リトライ詳細】\n"
+				retryDetail += fmt.Sprintf("  タスク番号: %d/%d\n", taskNum, len(tasks))
+				retryDetail += fmt.Sprintf("  タスク名: %s\n", task.Title)
+				retryDetail += fmt.Sprintf("  現在の試行: %d回目\n", taskRetryCount)
+				retryDetail += fmt.Sprintf("  残りリトライ: %d回\n", maxRetries-taskRetryCount+1)
+				retryDetail += fmt.Sprintf("  エラー内容: %v\n", err)
+				fmt.Print(retryDetail)
+				_, _ = f.WriteString(retryDetail)
+
+				log.Printf("🔄 Task retry: リトライを開始します (task %d, attempt %d/%d)\n", taskNum, taskRetryCount, maxRetries)
 
 				// Retry with error context
 				retryPrompt := fmt.Sprintf(`前回のタスク実行でエラーが発生しました (リトライ %d/%d):
@@ -278,7 +329,20 @@ func runSync(cmd *cobra.Command, args []string) error {
 
 プロジェクトディレクトリ: %s
 
-実装を開始してください。`, taskRetryCount, maxRetries, err, task.Title, task.Description, projectDir)
+実装を開始してください。
+
+実装後、以下の質問に必ず答えてください：
+
+【成功判定】
+このタスクは完全に成功しましたか？以下を確認してください：
+1. 必要なファイルが作成されているか
+2. 確認コマンドが成功しているか
+3. エラーが発生していないか
+
+成功の場合: "SUCCESS: このタスクは成功しました"
+失敗の場合: "FAILED: このタスクは失敗しました。理由: [具体的な理由]"
+
+という形式で必ず応答してください。`, taskRetryCount, maxRetries, err, task.Title, task.Description, projectDir)
 
 				if err := executeClaude(retryPrompt, f); err != nil {
 					log.Printf("❌ リトライ実行に失敗しました: %v\n", err)
@@ -314,9 +378,27 @@ func runSync(cmd *cobra.Command, args []string) error {
 				if err := runCommand(task.Command, f); err != nil {
 					retryCount++
 
+					// Detailed verification error logging
+					verifyErrorMsg := fmt.Sprintf("Task failed (verification): task %d/%d, command: %s, attempt %d/%d", taskNum, len(tasks), task.Command, retryCount, maxRetries+1)
+					_, _ = fmt.Fprintf(f, "\n❌ %s\n", verifyErrorMsg)
+
 					if retryCount > maxRetries {
-						log.Printf("❌ 検証が %d 回の試行後も失敗しました: %v\n", maxRetries+1, err)
-						log.Printf("実行を停止します。\n")
+						// Final verification failure - no more retries
+						verifyFailMsg := fmt.Sprintf("❌ Task failed (verification): タスク %d (\"%s\") の検証が %d 回の試行後も失敗しました\n", taskNum, task.Title, maxRetries+1)
+						fmt.Print(verifyFailMsg)
+						_, _ = f.WriteString(verifyFailMsg)
+
+						detailedVerifyError := "【検証失敗の詳細】\n"
+						detailedVerifyError += fmt.Sprintf("  タスク番号: %d/%d\n", taskNum, len(tasks))
+						detailedVerifyError += fmt.Sprintf("  タスク名: %s\n", task.Title)
+						detailedVerifyError += fmt.Sprintf("  検証コマンド: %s\n", task.Command)
+						detailedVerifyError += fmt.Sprintf("  試行回数: %d回\n", maxRetries+1)
+						detailedVerifyError += fmt.Sprintf("  エラー内容: %v\n", err)
+						detailedVerifyError += "\n実行を停止します。リトライ不可。\n"
+						fmt.Print(detailedVerifyError)
+						_, _ = f.WriteString(detailedVerifyError)
+
+						log.Printf("❌ Task failed (verification): リトライ上限に達しました (task %d, max retries: %d)\n", taskNum, maxRetries)
 
 						// Record failed execution to history
 						duration := time.Since(startTime)
@@ -328,7 +410,22 @@ func runSync(cmd *cobra.Command, args []string) error {
 						return fmt.Errorf("verification failed after %d attempts: %w", maxRetries+1, err)
 					}
 
-					log.Printf("❌ 検証失敗、修正を試みます（リトライ %d/%d 回目）: %v\n", retryCount, maxRetries, err)
+					// Verification retry is possible
+					verifyRetryMsg := fmt.Sprintf("❌ 検証失敗、修正を試みます（リトライ可能: %d/%d 回目）\n", retryCount, maxRetries)
+					fmt.Print(verifyRetryMsg)
+					_, _ = f.WriteString(verifyRetryMsg)
+
+					verifyRetryDetail := "【検証リトライ詳細】\n"
+					verifyRetryDetail += fmt.Sprintf("  タスク番号: %d/%d\n", taskNum, len(tasks))
+					verifyRetryDetail += fmt.Sprintf("  タスク名: %s\n", task.Title)
+					verifyRetryDetail += fmt.Sprintf("  検証コマンド: %s\n", task.Command)
+					verifyRetryDetail += fmt.Sprintf("  現在の試行: %d回目\n", retryCount)
+					verifyRetryDetail += fmt.Sprintf("  残りリトライ: %d回\n", maxRetries-retryCount+1)
+					verifyRetryDetail += fmt.Sprintf("  エラー内容: %v\n", err)
+					fmt.Print(verifyRetryDetail)
+					_, _ = f.WriteString(verifyRetryDetail)
+
+					log.Printf("🔄 Task retry (verification): リトライを開始します (task %d, attempt %d/%d)\n", taskNum, retryCount, maxRetries)
 
 					// Attempt to fix
 					fixPrompt := fmt.Sprintf(`検証コマンドが失敗しました（リトライ %d/%d 回目）:
@@ -398,62 +495,7 @@ func runSync(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func parseTaskFile(filename string) ([]Task, error) {
-	file, err := os.Open(filename)
-	if err != nil {
-		return nil, err
-	}
-	defer func() { _ = file.Close() }()
-
-	var tasks []Task
-	var currentTask *Task
-	var descLines []string
-
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := scanner.Text()
-
-		// Task title (starts with "## タスク" or "## Task")
-		if strings.HasPrefix(line, "## タスク") || strings.HasPrefix(line, "## Task") {
-			// Save previous task
-			if currentTask != nil {
-				currentTask.Description = strings.Join(descLines, "\n")
-				tasks = append(tasks, *currentTask)
-			}
-
-			// Start new task
-			currentTask = &Task{
-				Title: strings.TrimPrefix(strings.TrimPrefix(line, "## タスク"), "## Task"),
-			}
-			descLines = []string{}
-			continue
-		}
-
-		// Verification command (line starting with "- `")
-		if currentTask != nil && strings.HasPrefix(line, "- `") && strings.HasSuffix(line, "`") {
-			// Extract command from "- `command`" format
-			cmd := strings.TrimPrefix(line, "- `")
-			cmd = strings.TrimSuffix(cmd, "`")
-			currentTask.Command = cmd
-			continue
-		}
-
-		// Accumulate description lines
-		if currentTask != nil && line != "" && !strings.HasPrefix(line, "---") {
-			descLines = append(descLines, line)
-		}
-	}
-
-	// Save last task
-	if currentTask != nil {
-		currentTask.Description = strings.Join(descLines, "\n")
-		tasks = append(tasks, *currentTask)
-	}
-
-	return tasks, scanner.Err()
-}
-
-func executeTask(task Task, logFile *os.File) error {
+func executeTask(t task.Task, logFile *os.File) error {
 	prompt := fmt.Sprintf(`あなたは自律的にソフトウェア開発を行うエンジニアです。
 
 # タスク
@@ -469,9 +511,43 @@ func executeTask(task Task, logFile *os.File) error {
 
 プロジェクトディレクトリ: %s
 
-実装を開始してください。`, task.Title, task.Description, projectDir)
+実装を開始してください。
 
-	return executeClaude(prompt, logFile)
+実装後、以下の質問に必ず答えてください：
+
+【成功判定】
+このタスクは完全に成功しましたか？以下を確認してください：
+1. 必要なファイルが作成されているか
+2. 確認コマンドが成功しているか
+3. エラーが発生していないか
+
+成功の場合: "SUCCESS: このタスクは成功しました"
+失敗の場合: "FAILED: このタスクは失敗しました。理由: [具体的な理由]"
+
+という形式で必ず応答してください。`, t.Title, t.Description, projectDir)
+
+	if err := executeClaude(prompt, logFile); err != nil {
+		return err
+	}
+
+	// 確認コマンドを実行
+	if verifyCmd := t.Command; verifyCmd != "" {
+		fmt.Printf("\n🔍 Running verification in executeTask: %s\n", verifyCmd)
+		_, _ = fmt.Fprintf(logFile, "\n=== Verification Command: %s ===\n", verifyCmd)
+
+		cmd := exec.Command("bash", "-c", verifyCmd)
+		cmd.Dir = projectDir
+		output, err := cmd.CombinedOutput()
+		_, _ = logFile.Write(output)
+
+		if err != nil {
+			return fmt.Errorf("verification failed: %w\nOutput: %s", err, string(output))
+		}
+		log.Printf("✅ Verification passed: %s", verifyCmd)
+		_, _ = fmt.Fprintf(logFile, "✅ Verification passed\n")
+	}
+
+	return nil
 }
 
 func executeClaude(prompt string, logFile *os.File) error {
@@ -609,9 +685,9 @@ func createBranchForSync(taskFile string, logFile *os.File) error {
 	return nil
 }
 
-func commitTaskChanges(task Task, taskNumber int, logFile *os.File) error {
+func commitTaskChanges(t task.Task, taskNumber int, logFile *os.File) error {
 	timestamp := time.Now().Format("2006-01-02 15:04:05")
-	commitMessage := fmt.Sprintf("タスク%d: %s (%s)", taskNumber, task.Title, timestamp)
+	commitMessage := fmt.Sprintf("タスク%d: %s (%s)", taskNumber, t.Title, timestamp)
 
 	fmt.Printf("\n💾 Committing changes: %s\n", commitMessage)
 	_, _ = logFile.WriteString("\n=== Committing Changes ===\n")
@@ -645,7 +721,7 @@ func commitTaskChanges(task Task, taskNumber int, logFile *os.File) error {
 	return nil
 }
 
-func generatePRInfo(tasks []Task, taskFile string) {
+func generatePRInfo(tasks []task.Task, taskFile string) {
 	// Extract feature name from task file
 	filename := filepath.Base(taskFile)
 	featureName := sanitizeBranchName(filename)
@@ -666,7 +742,7 @@ func generatePRInfo(tasks []Task, taskFile string) {
 	fmt.Printf("========================================\n")
 }
 
-func generatePRTitle(tasks []Task, featureName string) string {
+func generatePRTitle(tasks []task.Task, featureName string) string {
 	// Use first task title as base, or use feature name
 	if len(tasks) > 0 {
 		firstTaskTitle := tasks[0].Title
@@ -685,7 +761,7 @@ func generatePRTitle(tasks []Task, featureName string) string {
 	return fmt.Sprintf("%sの実装", featureName)
 }
 
-func generatePRBody(tasks []Task) string {
+func generatePRBody(tasks []task.Task) string {
 	var body strings.Builder
 
 	body.WriteString("## 概要\n\n")
