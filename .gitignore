@@ -61,7 +61,6 @@ tonight.txt
 tmp/
 temp/
 _test_backup/
-test/
 
 # Go specific
 *.sum.lock
