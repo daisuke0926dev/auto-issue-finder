@@ -171,7 +171,7 @@ func ValidateDependencies(tasks []Task) error {
 }
 
 // checkCircularDependencies checks for circular dependencies in tasks
-func checkCircularDependencies(tasks []Task) error {
+func checkCircularDependencies(_ []Task) error {
 	// Since we only allow dependencies on earlier tasks (checked above),
 	// circular dependencies are impossible in this design.
 	// This function is kept for completeness and future extensibility.

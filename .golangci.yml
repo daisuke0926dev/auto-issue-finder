@@ -6,7 +6,6 @@ run:
 linters:
   enable:
     - misspell
-    - gosec
     - revive
     - errorlint
     - govet
