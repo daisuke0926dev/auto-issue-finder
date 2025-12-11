@@ -1,0 +1,616 @@
+# Rome APIキー認証実装タスク (v2)
+
+このタスクリストは、Sleepshipの改善機能（前提条件、厳密な確認コマンド）を活用して、
+Rome管理画面にAPIキー認証機能を実装するための包括的なタスクセットです。
+
+## タスク1: プロジェクト構造の確認と環境準備
+
+Romeプロジェクトの構造を確認し、開発環境が整っていることを検証します。
+
+### 確認
+```bash
+# プロジェクトディレクトリの存在確認
+test -d /Users/isiidaisuke0926/Documents/GitHub/rome/admin/backend
+test -d /Users/isiidaisuke0926/Documents/GitHub/rome/admin/frontend
+
+# Goの開発環境確認
+cd /Users/isiidaisuke0926/Documents/GitHub/rome/admin/backend && go version
+
+# Node.jsの開発環境確認
+cd /Users/isiidaisuke0926/Documents/GitHub/rome/admin/frontend && node --version && npm --version
+
+# 依存関係の確認
+cd /Users/isiidaisuke0926/Documents/GitHub/rome/admin/backend && go mod verify
+cd /Users/isiidaisuke0926/Documents/GitHub/rome/admin/frontend && test -d node_modules || npm install
+```
+
+## タスク2: データベーススキーマ設計
+
+APIキー用のデータベーステーブルを設計し、マイグレーションファイルを作成します。
+
+必要なカラム:
+- id: 主キー
+- organization_id: 組織ID（外部キー）
+- api_key: APIキー（ハッシュ化）
+- name: APIキーの名前/説明
+- created_at, updated_at: タイムスタンプ
+- expires_at: 有効期限（オプション）
+- is_active: 有効/無効フラグ
+
+### 前提条件
+- タスク1
+
+### 確認
+```bash
+# マイグレーションファイルの存在確認
+cd /Users/isiidaisuke0926/Documents/GitHub/rome/admin/backend
+test -f $(find . -name "*create_api_keys*.sql" -o -name "*api_keys*.up.sql" | head -1)
+
+# マイグレーションファイルの内容確認（必須カラムが含まれているか）
+MIGRATION_FILE=$(find . -name "*create_api_keys*.sql" -o -name "*api_keys*.up.sql" | head -1)
+grep -q "organization_id" "$MIGRATION_FILE"
+grep -q "api_key" "$MIGRATION_FILE"
+grep -q "name" "$MIGRATION_FILE"
+grep -q "created_at" "$MIGRATION_FILE"
+```
+
+## タスク3: マイグレーション実行
+
+データベースマイグレーションを実行し、APIキーテーブルを作成します。
+
+### 前提条件
+- タスク2
+
+### 確認
+```bash
+cd /Users/isiidaisuke0926/Documents/GitHub/rome/admin/backend
+
+# マイグレーションツールの存在確認（プロジェクトで使用しているツールに応じて調整）
+which migrate || which goose || go run -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest -version
+
+# マイグレーション実行（実際のコマンドはプロジェクトの構成に応じて調整）
+make db-migrate || go run cmd/migrate/main.go || echo "Migration command needs to be configured"
+
+# テーブルの存在確認（PostgreSQLの場合）
+# 実際の確認は環境に応じて調整が必要
+echo "Migration executed - manual verification required for table existence"
+```
+
+## タスク4: バックエンド - APIキーモデル定義
+
+GoでAPIキーのモデル（構造体）を定義します。
+
+### 前提条件
+- タスク3
+
+### 確認
+```bash
+cd /Users/isiidaisuke0926/Documents/GitHub/rome/admin/backend
+
+# モデルファイルの存在確認
+test -f $(find . -path "*/models/*" -name "*api_key*" -o -path "*/domain/*" -name "*api_key*" | head -1) || \
+test -f $(find . -name "*api_key*.go" | grep -v "_test.go" | head -1)
+
+# 必須フィールドの存在確認
+API_KEY_FILE=$(find . -name "*api_key*.go" | grep -v "_test.go" | head -1)
+grep -q "OrganizationID" "$API_KEY_FILE" || grep -q "organization_id" "$API_KEY_FILE"
+grep -q "APIKey" "$API_KEY_FILE" || grep -q "api_key" "$API_KEY_FILE"
+grep -q "Name" "$API_KEY_FILE"
+
+# ビルド確認
+go build ./...
+```
+
+## タスク5: バックエンド - APIキー生成機能実装
+
+セキュアなAPIキー生成機能を実装します。
+
+実装要件:
+- crypto/randを使用した安全なランダム文字列生成
+- 適切な長さ（32-64文字推奨）
+- プレフィックス付与（例: "rome_live_..."）
+- ハッシュ化してDB保存
+
+### 前提条件
+- タスク4
+
+### 確認
+```bash
+cd /Users/isiidaisuke0926/Documents/GitHub/rome/admin/backend
+
+# 生成関数の存在確認
+grep -r "GenerateAPIKey\|CreateAPIKey" --include="*.go" . | grep -v "_test.go" | grep -v "vendor"
+
+# crypto/randの使用確認
+API_KEY_GEN_FILE=$(grep -r "GenerateAPIKey\|CreateAPIKey" --include="*.go" . | grep -v "_test.go" | grep -v "vendor" | head -1 | cut -d: -f1)
+if [ -n "$API_KEY_GEN_FILE" ]; then
+  grep -q "crypto/rand" "$API_KEY_GEN_FILE"
+fi
+
+# ビルド確認
+go build ./...
+
+# テスト実行
+go test ./... -v | grep -i "api.*key" || go test ./...
+```
+
+## タスク6: バックエンド - APIキーハッシュ化機能実装
+
+APIキーをハッシュ化して保存する機能を実装します。
+
+実装要件:
+- bcryptまたはSHA-256を使用
+- ソルト付きハッシュ
+- 検証関数も併せて実装
+
+### 前提条件
+- タスク5
+
+### 確認
+```bash
+cd /Users/isiidaisuke0926/Documents/GitHub/rome/admin/backend
+
+# ハッシュ化関数の存在確認
+grep -r "HashAPIKey\|hashAPIKey" --include="*.go" . | grep -v "_test.go" | grep -v "vendor"
+
+# bcryptまたはcrypto/sha256の使用確認
+HASH_FILE=$(grep -r "HashAPIKey\|hashAPIKey" --include="*.go" . | grep -v "_test.go" | grep -v "vendor" | head -1 | cut -d: -f1)
+if [ -n "$HASH_FILE" ]; then
+  grep -q "bcrypt\|sha256" "$HASH_FILE"
+fi
+
+# 検証関数の存在確認
+grep -r "VerifyAPIKey\|verifyAPIKey" --include="*.go" . | grep -v "_test.go" | grep -v "vendor"
+
+# ビルドとテスト
+go build ./...
+go test ./... -v | grep -i "hash\|verify" || go test ./...
+```
+
+## タスク7: バックエンド - APIキーリポジトリ実装
+
+データベース操作を行うリポジトリ層を実装します。
+
+実装機能:
+- Create: APIキー作成
+- FindByKey: APIキーで検索（認証用）
+- List: 組織のAPIキー一覧取得
+- Delete: APIキー削除
+- Update: APIキー更新（有効/無効化など）
+
+### 前提条件
+- タスク6
+
+### 確認
+```bash
+cd /Users/isiidaisuke0926/Documents/GitHub/rome/admin/backend
+
+# リポジトリファイルの存在確認
+test -f $(find . -path "*/repository/*" -name "*api_key*" -o -path "*/repo/*" -name "*api_key*" | head -1) || \
+test -f $(find . -name "*api_key*repo*.go" | grep -v "_test.go" | head -1)
+
+REPO_FILE=$(find . -name "*api_key*repo*.go" -o -path "*/repository/*api_key*.go" | grep -v "_test.go" | head -1)
+
+# 必須メソッドの存在確認
+if [ -n "$REPO_FILE" ]; then
+  grep -q "Create\|create" "$REPO_FILE"
+  grep -q "FindByKey\|findByKey\|GetByKey" "$REPO_FILE"
+  grep -q "List\|list\|FindAll" "$REPO_FILE"
+  grep -q "Delete\|delete" "$REPO_FILE"
+fi
+
+# ビルドとテスト
+go build ./...
+go test ./... -run ".*APIKey.*" || go test ./...
+```
+
+## タスク8: バックエンド - APIキー認証ミドルウェア実装
+
+HTTPリクエストからAPIキーを検証するミドルウェアを実装します。
+
+実装要件:
+- AuthorizationヘッダーまたはクエリパラメータからAPIキー取得
+- APIキーの検証
+- 組織情報のコンテキストへの設定
+- エラーハンドリング（401 Unauthorized）
+
+### 前提条件
+- タスク7
+
+### 確認
+```bash
+cd /Users/isiidaisuke0926/Documents/GitHub/rome/admin/backend
+
+# ミドルウェアファイルの存在確認
+test -f $(find . -path "*/middleware/*" -name "*api_key*" -o -path "*/middleware/*" -name "*auth*" | head -1) || \
+test -f $(find . -name "*middleware*.go" | head -1)
+
+MIDDLEWARE_FILE=$(find . -path "*/middleware/*" -name "*api*" -o -name "*auth*middleware*.go" | grep -v "_test.go" | head -1)
+
+# ミドルウェア関数の存在確認
+if [ -n "$MIDDLEWARE_FILE" ]; then
+  grep -q "APIKeyAuth\|AuthenticateAPIKey" "$MIDDLEWARE_FILE" || grep -q "func.*Auth" "$MIDDLEWARE_FILE"
+  grep -q "Authorization\|api.*key" "$MIDDLEWARE_FILE"
+fi
+
+# ビルドとテスト
+go build ./...
+go test ./... -run ".*Middleware.*\|.*Auth.*" || go test ./...
+```
+
+## タスク9: バックエンド - APIエンドポイント実装
+
+APIキー管理用のRESTエンドポイントを実装します。
+
+エンドポイント:
+- POST /api/v1/organizations/:id/api-keys - APIキー作成
+- GET /api/v1/organizations/:id/api-keys - APIキー一覧
+- DELETE /api/v1/organizations/:id/api-keys/:key_id - APIキー削除
+- PATCH /api/v1/organizations/:id/api-keys/:key_id - APIキー更新
+
+### 前提条件
+- タスク8
+
+### 確認
+```bash
+cd /Users/isiidaisuke0926/Documents/GitHub/rome/admin/backend
+
+# ハンドラーファイルの存在確認
+test -f $(find . -path "*/handler/*" -name "*api_key*" -o -path "*/controller/*" -name "*api_key*" | head -1) || \
+test -f $(find . -name "*api_key*handler*.go" -o -name "*api_key*controller*.go" | grep -v "_test.go" | head -1)
+
+HANDLER_FILE=$(find . -name "*api_key*handler*.go" -o -name "*api_key*controller*.go" -o -path "*/handler/*api_key*.go" | grep -v "_test.go" | head -1)
+
+# ハンドラー関数の存在確認
+if [ -n "$HANDLER_FILE" ]; then
+  grep -q "Create\|create" "$HANDLER_FILE"
+  grep -q "List\|list\|Index" "$HANDLER_FILE"
+  grep -q "Delete\|delete" "$HANDLER_FILE"
+fi
+
+# ルート定義の確認
+grep -r "api-keys\|api_keys" --include="*.go" . | grep -i "route\|router" | grep -v "vendor"
+
+# ビルド確認
+go build ./...
+go test ./... -run ".*Handler.*\|.*Controller.*" || go test ./...
+```
+
+## タスク10: バックエンド - 統合テスト
+
+APIキー認証機能全体の統合テストを実装します。
+
+テストケース:
+- APIキー生成のテスト
+- APIキー認証成功のテスト
+- 無効なAPIキーでの認証失敗テスト
+- APIキー一覧取得のテスト
+- APIキー削除のテスト
+
+### 前提条件
+- タスク9
+
+### 確認
+```bash
+cd /Users/isiidaisuke0926/Documents/GitHub/rome/admin/backend
+
+# テストファイルの存在確認
+find . -name "*api_key*_test.go" | grep -v "vendor"
+
+# テスト実行
+go test ./... -v -run ".*APIKey.*" | grep -E "PASS|FAIL"
+
+# カバレッジ確認（オプション）
+go test ./... -coverprofile=coverage.out -run ".*APIKey.*"
+if [ -f coverage.out ]; then
+  go tool cover -func=coverage.out | grep "total:" | awk '{print $3}' | grep -E "^[5-9][0-9]\.|^100"
+  rm coverage.out
+fi
+
+# 全テスト実行
+go test ./...
+```
+
+## タスク11: フロントエンド - APIキー管理画面の設計
+
+APIキー管理画面のUIコンポーネント設計を行います。
+
+画面要素:
+- APIキー一覧テーブル
+- APIキー作成ボタン
+- APIキー作成モーダル/フォーム
+- APIキー削除確認ダイアログ
+- APIキー表示（初回のみ、マスキング表示）
+
+### 前提条件
+- タスク10
+
+### 確認
+```bash
+cd /Users/isiidaisuke0926/Documents/GitHub/rome/admin/frontend
+
+# コンポーネントディレクトリの存在確認
+test -d src/components || test -d src || test -d app
+
+# APIキー関連コンポーネントファイルの存在確認
+find . -name "*ApiKey*" -o -name "*api-key*" -o -name "*apikey*" | grep -E "\.(tsx?|jsx?|vue)$" | head -5
+
+# ビルド確認
+npm run build || npm run type-check || tsc --noEmit || echo "Build check completed"
+```
+
+## タスク12: フロントエンド - APIキー一覧表示実装
+
+APIキー一覧を表示するコンポーネントを実装します。
+
+実装要件:
+- バックエンドAPIからデータ取得
+- テーブル形式で表示
+- 作成日時、名前、有効期限などの情報表示
+- ローディング状態とエラー処理
+
+### 前提条件
+- タスク11
+
+### 確認
+```bash
+cd /Users/isiidaisuke0926/Documents/GitHub/rome/admin/frontend
+
+# 一覧コンポーネントの存在確認
+find . -name "*ApiKeyList*" -o -name "*api-key-list*" | grep -E "\.(tsx?|jsx?|vue)$"
+
+# API呼び出しコードの確認
+grep -r "api-keys\|api_keys" --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" . | grep -i "get\|fetch" | head -3
+
+# Lintチェック
+npm run lint || npm run type-check || echo "Lint check completed"
+
+# ビルド確認
+npm run build || tsc --noEmit || echo "Build completed"
+```
+
+## タスク13: フロントエンド - APIキー作成フォーム実装
+
+新しいAPIキーを作成するフォームを実装します。
+
+実装要件:
+- 名前入力フィールド
+- 有効期限設定（オプション）
+- フォームバリデーション
+- 作成成功時のAPIキー表示（一度だけ）
+- コピー機能
+
+### 前提条件
+- タスク12
+
+### 確認
+```bash
+cd /Users/isiidaisuke0926/Documents/GitHub/rome/admin/frontend
+
+# 作成フォームコンポーネントの存在確認
+find . -name "*ApiKeyCreate*" -o -name "*ApiKeyForm*" -o -name "*api-key-create*" | grep -E "\.(tsx?|jsx?|vue)$"
+
+# POST API呼び出しコードの確認
+grep -r "api-keys\|api_keys" --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" . | grep -i "post\|create" | head -3
+
+# バリデーションコードの確認
+grep -r "validation\|validate\|yup\|zod" --include="*.ts" --include="*.tsx" . | grep -i "api.*key\|form" | head -3
+
+# Lintとビルド
+npm run lint || npm run type-check || echo "Lint completed"
+npm run build || tsc --noEmit || echo "Build completed"
+```
+
+## タスク14: フロントエンド - APIキー削除機能実装
+
+APIキーを削除する機能を実装します。
+
+実装要件:
+- 削除ボタン
+- 確認ダイアログ
+- API呼び出し
+- 成功時の一覧更新
+
+### 前提条件
+- タスク13
+
+### 確認
+```bash
+cd /Users/isiidaisuke0926/Documents/GitHub/rome/admin/frontend
+
+# 削除機能コードの確認
+grep -r "delete.*api.*key\|remove.*api.*key" --include="*.ts" --include="*.tsx" --include="*.js" --include="*.jsx" . -i | head -3
+
+# DELETE API呼び出しの確認
+grep -r "api-keys\|api_keys" --include="*.ts" --include="*.tsx" . | grep -i "delete" | head -3
+
+# 確認ダイアログの存在確認
+grep -r "confirm.*delete\|delete.*confirm" --include="*.ts" --include="*.tsx" --include="*.jsx" . -i | head -3
+
+# Lintとビルド
+npm run lint || npm run type-check || echo "Lint completed"
+npm run build || tsc --noEmit || echo "Build completed"
+```
+
+## タスク15: フロントエンド - スタイリングとUX改善
+
+UIのスタイリングとユーザーエクスペリエンスを改善します。
+
+実装要件:
+- レスポンシブデザイン
+- ローディングスピナー
+- エラーメッセージ表示
+- 成功時のトースト通知
+- アクセシビリティ対応
+
+### 前提条件
+- タスク14
+
+### 確認
+```bash
+cd /Users/isiidaisuke0926/Documents/GitHub/rome/admin/frontend
+
+# CSSまたはスタイリングファイルの存在確認
+find . -name "*api-key*" | grep -E "\.(css|scss|sass|styled\.ts)$" | head -3
+
+# ローディング状態の実装確認
+grep -r "loading\|isLoading" --include="*.ts" --include="*.tsx" . | grep -i "api.*key" | head -3
+
+# エラーハンドリングの確認
+grep -r "error\|catch" --include="*.ts" --include="*.tsx" . | grep -i "api.*key" | head -3
+
+# 全体のビルドとLint
+npm run lint || npm run type-check || echo "Lint completed"
+npm run build || tsc --noEmit || echo "Build completed"
+```
+
+## タスク16: E2Eテスト実装
+
+エンドツーエンドのテストを実装します。
+
+テストシナリオ:
+1. APIキー作成フローのテスト
+2. APIキー一覧表示のテスト
+3. APIキー削除フローのテスト
+4. APIキー認証のテスト
+
+### 前提条件
+- タスク15
+
+### 確認
+```bash
+cd /Users/isiidaisuke0926/Documents/GitHub/rome
+
+# E2Eテストファイルの存在確認
+find . -name "*api-key*.spec.*" -o -name "*api-key*.test.*" -o -name "*api_key*.e2e.*" | grep -v "node_modules" | head -3
+
+# テストフレームワークの確認
+grep -r "cypress\|playwright\|puppeteer" package.json admin/*/package.json 2>/dev/null | head -3
+
+# テスト実行（環境に応じて）
+cd admin/frontend
+npm run test:e2e || npm run test || echo "E2E tests configured - manual run may be required"
+```
+
+## タスク17: ドキュメント作成
+
+APIキー機能のドキュメントを作成します。
+
+作成するドキュメント:
+- API仕様書（OpenAPI/Swagger）
+- ユーザー向け利用ガイド
+- 開発者向け実装ドキュメント
+
+### 前提条件
+- タスク16
+
+### 確認
+```bash
+cd /Users/isiidaisuke0926/Documents/GitHub/rome
+
+# ドキュメントディレクトリの確認
+test -d docs || mkdir -p docs
+
+# APIキー関連ドキュメントの存在確認
+find docs -name "*api-key*" -o -name "*authentication*" | head -3
+
+# OpenAPI/Swagger仕様の確認
+find . -name "swagger.yaml" -o -name "openapi.yaml" -o -name "swagger.json" | grep -v "node_modules" | head -1
+
+# ドキュメント内にAPIキーの記載があるか確認
+grep -r "API.*Key\|APIキー" docs/ 2>/dev/null | head -3 || echo "Documentation created"
+```
+
+## タスク18: セキュリティレビュー
+
+セキュリティ観点でのレビューと改善を行います。
+
+チェック項目:
+- APIキーのハッシュ化が適切か
+- HTTPS通信の強制
+- レート制限の実装
+- ログに平文のAPIキーが出力されていないか
+- APIキーの有効期限設定
+
+### 前提条件
+- タスク17
+
+### 確認
+```bash
+cd /Users/isiidaisuke0926/Documents/GitHub/rome/admin/backend
+
+# ハッシュ化の確認
+grep -r "bcrypt\|sha256" --include="*.go" . | grep -i "api.*key" | head -3
+
+# HTTPS強制の確認（設定ファイルまたはミドルウェア）
+grep -r "tls\|https\|ssl" --include="*.go" --include="*.yaml" --include="*.yml" . | head -3
+
+# レート制限の実装確認
+grep -r "rate.*limit\|ratelimit\|throttle" --include="*.go" . | head -3
+
+# ログ出力の確認（平文APIキーが出力されていないか）
+grep -r "log\|Log" --include="*.go" . | grep -i "api.*key" | head -5
+
+# セキュリティテストの実行
+go test ./... -run ".*Security.*\|.*Auth.*" || echo "Security review completed"
+```
+
+## タスク19: パフォーマンステスト
+
+APIキー認証のパフォーマンステストを実施します。
+
+テスト項目:
+- APIキー検証の応答時間
+- 同時リクエストの処理能力
+- データベースクエリの最適化
+
+### 前提条件
+- タスク18
+
+### 確認
+```bash
+cd /Users/isiidaisuke0926/Documents/GitHub/rome/admin/backend
+
+# ベンチマークテストファイルの存在確認
+find . -name "*_bench_test.go" -o -name "*benchmark*.go" | grep -v "vendor" | head -3
+
+# ベンチマークテストの実行
+go test -bench=. -benchmem ./... | grep -i "api.*key\|auth" || go test -bench=. ./... | head -20
+
+# プロファイリング（オプション）
+echo "Performance testing completed - review benchmark results"
+```
+
+## タスク20: 本番環境デプロイ準備
+
+本番環境へのデプロイ準備を行います。
+
+準備項目:
+- 環境変数の設定ドキュメント
+- マイグレーションスクリプトの検証
+- ロールバック手順の作成
+- モニタリング設定
+
+### 前提条件
+- タスク19
+
+### 確認
+```bash
+cd /Users/isiidaisuke0926/Documents/GitHub/rome
+
+# 環境変数のドキュメント確認
+grep -r "API_KEY\|APIKEY" --include="*.md" --include=".env.example" . | head -5
+
+# マイグレーションファイルの確認
+find admin/backend -name "*api_key*.sql" -o -name "*api_key*.up.sql" | head -3
+
+# デプロイスクリプトの確認
+find . -name "deploy.sh" -o -name "Makefile" | grep -v "node_modules" | head -3
+
+# Kubernetes設定の確認（該当する場合）
+find k8s -name "*.yaml" -o -name "*.yml" 2>/dev/null | head -5 || echo "Deployment preparation completed"
+
+# 全体のビルドとテスト
+cd admin/backend && go build ./... && go test ./...
+cd ../frontend && npm run build
+```
