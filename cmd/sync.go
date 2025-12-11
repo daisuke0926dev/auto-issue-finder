@@ -2,7 +2,6 @@
 package cmd
 
 import (
-	"bufio"
 	"fmt"
 	"log"
 	"os"
@@ -15,6 +14,7 @@ import (
 
 	"github.com/isiidaisuke0926/sleepship/internal/config"
 	"github.com/isiidaisuke0926/sleepship/internal/history"
+	"github.com/isiidaisuke0926/sleepship/task"
 	"github.com/spf13/cobra"
 )
 
@@ -29,14 +29,6 @@ var (
 	startFrom  int  // Start from specified task number
 	maxRetries int  // Maximum number of retries for failed verifications (default: 3)
 )
-
-// Task represents a development task with title, description, and verification command.
-type Task struct {
-	Title        string
-	Description  string
-	Command      string // 確認コマンド（go build, go test等）
-	Dependencies []int  // 依存するタスク番号のリスト
-}
 
 var syncCmd = &cobra.Command{
 	Use:   "sync [task-file]",
@@ -152,7 +144,7 @@ func runSync(cmd *cobra.Command, args []string) error {
 	projectDir = absProjectDir
 
 	// Parse task file
-	tasks, err := parseTaskFile(taskFile)
+	tasks, err := task.ParseTaskFile(taskFile)
 	if err != nil {
 		return fmt.Errorf("failed to parse task file: %w", err)
 	}
@@ -162,7 +154,7 @@ func runSync(cmd *cobra.Command, args []string) error {
 	}
 
 	// Validate task dependencies
-	if err := validateDependencies(tasks); err != nil {
+	if err := task.ValidateDependencies(tasks); err != nil {
 		return fmt.Errorf("invalid task dependencies: %w", err)
 	}
 
@@ -239,6 +231,29 @@ func runSync(cmd *cobra.Command, args []string) error {
 		taskHeader := fmt.Sprintf("========================================\nTask %d/%d: %s\n========================================\n\n", taskNum, len(tasks), task.Title)
 		fmt.Print(taskHeader)
 		_, _ = f.WriteString(taskHeader)
+
+		// Execute prerequisite check before task execution
+		if task.Prerequisites != "" {
+			fmt.Printf("\n🔍 Running prerequisite check: %s\n", task.Prerequisites)
+			_, _ = fmt.Fprintf(f, "\n=== Prerequisite Check: %s ===\n", task.Prerequisites)
+
+			if err := runCommand(task.Prerequisites, f); err != nil {
+				prereqFailMsg := fmt.Sprintf("❌ Prerequisite check failed for task %d: %v\n", taskNum, err)
+				fmt.Print(prereqFailMsg)
+				_, _ = f.WriteString(prereqFailMsg)
+
+				// Record failed execution to history
+				duration := time.Since(startTime)
+				histErr := history.Record(projectDir, taskFile, branchName, false, duration, len(tasks), startFrom, maxRetries, fmt.Sprintf("Prerequisite check failed for task %d: %v", taskNum, err))
+				if histErr != nil {
+					log.Printf("⚠️ Warning: Failed to record history: %v\n", histErr)
+				}
+
+				return fmt.Errorf("prerequisite check failed for task %d: %w", taskNum, err)
+			}
+
+			fmt.Printf("✅ Prerequisite check passed\n")
+		}
 
 		// Execute task with Claude with retry logic
 		var lastErr error
@@ -480,141 +495,7 @@ func runSync(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func parseTaskFile(filename string) ([]Task, error) {
-	file, err := os.Open(filename)
-	if err != nil {
-		return nil, err
-	}
-	defer func() { _ = file.Close() }()
-
-	var tasks []Task
-	var currentTask *Task
-	var descLines []string
-	var inDependencySection bool
-
-	scanner := bufio.NewScanner(file)
-	for scanner.Scan() {
-		line := scanner.Text()
-
-		// Task title (starts with "## タスク" or "## Task")
-		if strings.HasPrefix(line, "## タスク") || strings.HasPrefix(line, "## Task") {
-			// Save previous task
-			if currentTask != nil {
-				currentTask.Description = strings.Join(descLines, "\n")
-				tasks = append(tasks, *currentTask)
-			}
-
-			// Start new task
-			currentTask = &Task{
-				Title:        strings.TrimPrefix(strings.TrimPrefix(line, "## タスク"), "## Task"),
-				Dependencies: []int{},
-			}
-			descLines = []string{}
-			inDependencySection = false
-			continue
-		}
-
-		// Dependency section header
-		if currentTask != nil && (strings.HasPrefix(line, "### 依存") || strings.HasPrefix(line, "### Dependencies")) {
-			inDependencySection = true
-			continue
-		}
-
-		// Exit dependency section on next section header
-		if currentTask != nil && strings.HasPrefix(line, "###") && !strings.HasPrefix(line, "### 依存") && !strings.HasPrefix(line, "### Dependencies") {
-			inDependencySection = false
-		}
-
-		// Parse dependency lines (e.g., "- 1, 2, 3" or "- 1")
-		if currentTask != nil && inDependencySection && strings.HasPrefix(line, "- ") {
-			depStr := strings.TrimPrefix(line, "- ")
-			deps := parseDependencies(depStr)
-			currentTask.Dependencies = append(currentTask.Dependencies, deps...)
-			continue
-		}
-
-		// Verification command (line starting with "- `")
-		if currentTask != nil && !inDependencySection && strings.HasPrefix(line, "- `") && strings.HasSuffix(line, "`") {
-			// Extract command from "- `command`" format
-			cmd := strings.TrimPrefix(line, "- `")
-			cmd = strings.TrimSuffix(cmd, "`")
-			currentTask.Command = cmd
-			continue
-		}
-
-		// Accumulate description lines
-		if currentTask != nil && !inDependencySection && line != "" && !strings.HasPrefix(line, "---") {
-			descLines = append(descLines, line)
-		}
-	}
-
-	// Save last task
-	if currentTask != nil {
-		currentTask.Description = strings.Join(descLines, "\n")
-		tasks = append(tasks, *currentTask)
-	}
-
-	return tasks, scanner.Err()
-}
-
-// parseDependencies parses a comma-separated list of task numbers
-// Example: "1, 2, 3" -> [1, 2, 3]
-func parseDependencies(depStr string) []int {
-	var deps []int
-	parts := strings.Split(depStr, ",")
-	for _, part := range parts {
-		part = strings.TrimSpace(part)
-		if num, err := strconv.Atoi(part); err == nil {
-			deps = append(deps, num)
-		}
-	}
-	return deps
-}
-
-// validateDependencies validates that all task dependencies are valid
-func validateDependencies(tasks []Task) error {
-	// Create a map of valid task numbers
-	validTasks := make(map[int]bool)
-	for i := range tasks {
-		validTasks[i+1] = true
-	}
-
-	// Check each task's dependencies
-	for i, task := range tasks {
-		taskNum := i + 1
-		for _, dep := range task.Dependencies {
-			// Check if dependency exists
-			if !validTasks[dep] {
-				return fmt.Errorf("task %d references non-existent task %d", taskNum, dep)
-			}
-			// Check for self-dependency
-			if dep == taskNum {
-				return fmt.Errorf("task %d cannot depend on itself", taskNum)
-			}
-			// Check for forward dependency (task cannot depend on later tasks)
-			if dep >= taskNum {
-				return fmt.Errorf("task %d cannot depend on later task %d (dependencies must be on earlier tasks)", taskNum, dep)
-			}
-		}
-	}
-
-	// Check for circular dependencies (if any exist)
-	if err := checkCircularDependencies(tasks); err != nil {
-		return err
-	}
-
-	return nil
-}
-
-// checkCircularDependencies checks for circular dependencies in tasks
-func checkCircularDependencies(tasks []Task) error {
-	// Since we only allow dependencies on earlier tasks (checked above),
-	// circular dependencies are impossible in this design.
-	// This function is kept for completeness and future extensibility.
-	return nil
-}
-
-func executeTask(task Task, logFile *os.File) error {
+func executeTask(t task.Task, logFile *os.File) error {
 	prompt := fmt.Sprintf(`あなたは自律的にソフトウェア開発を行うエンジニアです。
 
 # タスク
@@ -643,14 +524,14 @@ func executeTask(task Task, logFile *os.File) error {
 成功の場合: "SUCCESS: このタスクは成功しました"
 失敗の場合: "FAILED: このタスクは失敗しました。理由: [具体的な理由]"
 
-という形式で必ず応答してください。`, task.Title, task.Description, projectDir)
+という形式で必ず応答してください。`, t.Title, t.Description, projectDir)
 
 	if err := executeClaude(prompt, logFile); err != nil {
 		return err
 	}
 
 	// 確認コマンドを実行
-	if verifyCmd := task.Command; verifyCmd != "" {
+	if verifyCmd := t.Command; verifyCmd != "" {
 		fmt.Printf("\n🔍 Running verification in executeTask: %s\n", verifyCmd)
 		_, _ = fmt.Fprintf(logFile, "\n=== Verification Command: %s ===\n", verifyCmd)
 
@@ -804,9 +685,9 @@ func createBranchForSync(taskFile string, logFile *os.File) error {
 	return nil
 }
 
-func commitTaskChanges(task Task, taskNumber int, logFile *os.File) error {
+func commitTaskChanges(t task.Task, taskNumber int, logFile *os.File) error {
 	timestamp := time.Now().Format("2006-01-02 15:04:05")
-	commitMessage := fmt.Sprintf("タスク%d: %s (%s)", taskNumber, task.Title, timestamp)
+	commitMessage := fmt.Sprintf("タスク%d: %s (%s)", taskNumber, t.Title, timestamp)
 
 	fmt.Printf("\n💾 Committing changes: %s\n", commitMessage)
 	_, _ = logFile.WriteString("\n=== Committing Changes ===\n")
@@ -840,7 +721,7 @@ func commitTaskChanges(task Task, taskNumber int, logFile *os.File) error {
 	return nil
 }
 
-func generatePRInfo(tasks []Task, taskFile string) {
+func generatePRInfo(tasks []task.Task, taskFile string) {
 	// Extract feature name from task file
 	filename := filepath.Base(taskFile)
 	featureName := sanitizeBranchName(filename)
@@ -861,7 +742,7 @@ func generatePRInfo(tasks []Task, taskFile string) {
 	fmt.Printf("========================================\n")
 }
 
-func generatePRTitle(tasks []Task, featureName string) string {
+func generatePRTitle(tasks []task.Task, featureName string) string {
 	// Use first task title as base, or use feature name
 	if len(tasks) > 0 {
 		firstTaskTitle := tasks[0].Title
@@ -880,7 +761,7 @@ func generatePRTitle(tasks []Task, featureName string) string {
 	return fmt.Sprintf("%sの実装", featureName)
 }
 
-func generatePRBody(tasks []Task) string {
+func generatePRBody(tasks []task.Task) string {
 	var body strings.Builder
 
 	body.WriteString("## 概要\n\n")

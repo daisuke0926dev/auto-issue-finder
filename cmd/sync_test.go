@@ -4,6 +4,8 @@ import (
 	"fmt"
 	"os"
 	"testing"
+
+	"github.com/isiidaisuke0926/sleepship/task"
 )
 
 func TestTaskSkipLogic(t *testing.T) {
@@ -188,7 +190,7 @@ func TestParseTaskFile(t *testing.T) {
 	}
 	defer removeFile(tmpFile)
 
-	tasks, err := parseTaskFile(tmpFile)
+	tasks, err := task.ParseTaskFile(tmpFile)
 	if err != nil {
 		t.Fatalf("Failed to parse task file: %v", err)
 	}
